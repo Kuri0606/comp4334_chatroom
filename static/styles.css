@@ -1,0 +1,17 @@
+#messageShow{
+    width:500px;
+    height: 500px;
+    border: black 3px solid;
+    overflow: auto;
+}
+
+#messageInput{
+    width: 500px;
+    height: 200px;
+    overflow: auto;
+}
+
+#messageSend{
+    width: 50px;
+    height: 35px;
+}

@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>Chat Room</title>
+        <!-- import CSS -->
+        <link href="chatroom.css" rel="stylesheet">
+    </head>
+
+    <body>
+        <div>
+            <h2>Hi, user</h2>
+
+            <!-- message container -->
+            <div id="messageShow">
+
+            </div>
+
+            <br>
+
+
+            <!-- message input -->
+            <textarea id="messageInput">
+
+            </textarea>
+
+            <br>
+
+            <!-- send button-->
+            <button id="messageSend">
+                Send
+            </button>
+
+        </div>
+
+        <!-- Script -->
+
+        <!-- jQuery -->
+        <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+
+        <!-- Script -->
+        <script type="text/javascript">
+
+            // chat room function
+            function sendMessage() {
+
+            }
+        
+
+
+
+            
+            // Start 
+
+
+
+            // User data structure
+            class User{
+                constructor(name){
+                    this.name = name;
+
+                    this.privateKey;
+                    this.publicKey;
+                    this.secret;
+                    this.macKey;
+                }
+
+                updatePrivateKey(key){
+                    this.privateKey = key;
+                }
+
+                updatePublicKey(key){
+                    this.publicKey = key;
+                }
+
+                updateSecret(key){
+                    this.secret = key;
+                }
+
+
+
+
+            }
+
+            // check Local storage have Private Key or not
+            if(true){
+
+            }
+            // No, Local storage Key, generate a new Private Key
+            else{
+                generateNewKey();
+            }
+
+
+
+
+
+
+
+
+
+
+
+            // key generation function
+            function generateNewKey(){
+
+            }
+
+            // step1: generate pair of ECDH key pair--------------------------------------------------------------------
+            // export ECDH Private Key
+            async function ECDH_Private_Export(myPrivateKey,User){
+                    const exportKey = await window.crypto.subtle.exportKey("jwk", myPrivateKey);
+                    localStorage.setItem("my_ECDH_PrivateKey", JSON.stringify(exportKey));
+                    //console.log("my_ECDH_PrivateKey export success:", localStorage.getItem("my_ECDH_PrivateKey"));
+                    // use the imported one to ensure it is success
+                    await ECDH_Private_import(User);
+            }  
+
+            // import ECDH Private Key
+            async function ECDH_Private_import(User){
+                    const jwk = JSON.parse(localStorage.getItem("my_ECDH_PrivateKey"));    
+                    let importKey = await window.crypto.subtle.importKey(
+                        "jwk", 
+                        jwk, 
+                        { name: "ECDH", namedCurve: "P-384", }, 
+                        true, 
+                        ["deriveKey"]
+                    );
+                    User.updatePrivateKey(await importKey);
+            }   
+
+            // export ECDH Public Key
+            async function ECDH_Public_Export(myPublicKey,User){
+                    const exportKey = await window.crypto.subtle.exportKey("jwk", myPublicKey);
+                    localStorage.setItem("my_ECDH_PublicKey", JSON.stringify(exportKey));
+                    //console.log("my_ECDH_PublicKey export success:", localStorage.getItem("my_ECDH_PublicKey"));
+                    // use the imported one to ensure it is success
+                    await ECDH_Public_import(User);
+            }  
+
+            // import ECDH Public Key
+            async function ECDH_Public_import(User){
+                    const jwk = JSON.parse(localStorage.getItem("my_ECDH_PublicKey"));    
+                    let importKey = await window.crypto.subtle.importKey(
+                        "jwk", 
+                        jwk, 
+                        { name: "ECDH", namedCurve: "P-384", }, 
+                        true, 
+                        [],
+                    );
+                    User.updatePublicKey(await importKey);
+            }  
+
+            async function generateECDH(User){
+
+                let myECDHKeyPair = await window.crypto.subtle.generateKey(
+                    {
+                        name: "ECDH",
+                        namedCurve: "P-384",
+                    },
+                    true,
+                    ["deriveKey"],
+
+                )
+                    console.log("Debug: ECDH key pair DONE", myECDHKeyPair) //Debug Msg: generate success
+
+                    // seperate it to Private Key and Public Key
+                    // Private key
+                    let  myPrivateKey = myECDHKeyPair.privateKey;
+                    await ECDH_Private_Export(myPrivateKey, User);
+                    console.log("Debug: Your ECDH Private Key DONE", User.privateKey) //Debug Msg: generate success
+
+                    // Public key
+                    let  myPublicKey = myECDHKeyPair.publicKey;
+                    await ECDH_Public_Export(myPublicKey, User);
+                    console.log("Debug: Your ECDH Public Key DONE", User.publicKey) //Debug Msg: generate success
+                
+                
+            }
+
+            // step2: generate share secret--------------------------------------------------------------------
+
+            //create a dummy friend Bob for debug-------------
+            async function dummyBob(User){
+                let dummyKey =  await window.crypto.subtle.generateKey(
+                {
+                    name: "ECDH",
+                    namedCurve: "P-384",
+                },
+                true,
+                ["deriveKey"],
+                )
+                    User.updatePrivateKey(await dummyKey.privateKey);
+                    console.log("Debug: Bob ECDH Privatte Key DONE", dummyKey.privateKey) //Debug Msg: generate success
+                    User.updatePublicKey(await dummyKey.publicKey);
+                    console.log("Debug: Bob ECDH Public Key DONE", dummyKey.publicKey) //Debug Msg: generate success
+            
+            }
+            
+            //derive share secret (you are user1)
+            async function deriveSecret(User1, User2){
+                console.log("Debug: User1 ECDH Private Key", User1.privateKey); //Debug Msg: generate success
+                console.log("Debug: User2 ECDH Public Key", User2.publicKey); //Debug Msg: generate success
+                const mySecret = await window.crypto.subtle.deriveKey(
+                    {
+                        name: "ECDH",
+                        public: User2.publicKey,
+                    },
+                    User1.privateKey,
+                    {
+                        name: "HKDF",
+                        hash: "SHA-256",
+                    },
+                    false,
+                    ["deriveKey"],
+                )
+                    User1.updateSecret(await mySecret);
+                    console.log("Debug: Shared secret DONE", User1.secret) //Debug Msg: generate success
+                
+
+                
+            }
+
+
+
+            //-------------------------------------
+
+            // Encryption / Decryption function
+
+            //--------------start-----------------------
+            
+            
+            async function runProgram(){
+
+                const Alice = new User("User");
+                const Bob = new User("Bob");
+
+                
+
+                await generateECDH(Alice);
+                await dummyBob(Bob);
+                await deriveSecret(Alice,Bob);
+
+
+            }
+
+            document.addEventListener('DOMContentLoaded', runProgram);
+
+//
+//                       _oo0oo_
+//                      o8888888o
+//                      88" . "88
+//                      (| -_- |)
+//                      0\  =  /0
+//                    ___/`---'\___
+//                  .' \\|     |// '.
+//                 / \\|||  :  |||// \
+//                / _||||| -:- |||||- \
+//               |   | \\\  -  /// |   |
+//               | \_|  ''\---/''  |_/ |
+//               \  .-\__  '-'  ___/-. /
+//             ___'. .'  /--.--\  `. .'___
+//          ."" '<  `.___\_<|>_/___.' >' "".
+//         | | :  `- \`.;`\ _ /`;.`/ - ` : | |
+//         \  \ `_.   \_ __\ /__ _/   .-` /  /
+//     =====`-.____`.___ \_____/___.-`___.-'=====
+//                       `=---='
+//
+//
+//     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+//
+//               佛祖保佑         永无BUG
+//
+//
+//
+        </script>
+    </body>
+</html>
