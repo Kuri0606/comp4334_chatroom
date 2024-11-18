@@ -45,24 +45,44 @@
             function sendMessage() {
 
             }
-        
-
-
-
             
             // Start 
-
-
-
             // User data structure
             class User{
                 constructor(name){
                     this.name = name;
-
+                    this.userID;
                     this.privateKey;
                     this.publicKey;
                     this.secret;
                     this.macKey;
+                    this.encryptKey = [];
+                    this.salt = new Uint8Array(16);
+                    this.myIV = new Uint8Array(16);
+
+                   
+                    const tempEncryptArray = localStorage.getItem('my_encryptKey');
+                    // get encryptArray
+                    if(tempEncryptArray == null){
+                        //if no existing encryptKey array, create a new one
+                        localStorage.setItem('my_encryptKey', JSON.stringify(this.encryptKey));
+                    }
+                    else{
+                        this.encryptKey = JSON.parse(tempEncryptArray);
+                    }
+
+                    
+                    const tempSalt = localStorage.getItem('my_salt');
+                    // gett salt
+                    if(tempSalt == null){
+                        //if no existing salt array, create a new one
+                        localStorage.setItem('my_salt', JSON.stringify(this.salt));
+                    }
+                    else{
+                        this.salt = new Uint8Array(JSON.parse(tempSalt));
+                        
+                    }
+                        
                 }
 
                 updatePrivateKey(key){
@@ -77,19 +97,47 @@
                     this.secret = key;
                 }
 
+                updateMac(key){
+                    this.macKey = key;
+                }
 
+                updateEncryptKey(key){
+                    this.encryptKey.push(key);
+                }
+
+                updateSalt(){
+                    let count = this.salt.length -1;
+                    while ( count >= 0) {
+                        if(this.salt[count]===255){
+                            this.salt[count] = 0;
+                            count--;
+                        }
+                        else{
+                            this.salt[count]++;
+                            break;
+                        }
+                        
+                    }
+                    localStorage.setItem('my_salt', JSON.stringify(Array.from(this.salt)));
+                }
 
 
             }
 
             // check Local storage have Private Key or not
-            if(true){
+            function checkKey(User){
+                if(true){
 
-            }
-            // No, Local storage Key, generate a new Private Key
-            else{
+                }
+                // No, Local storage Key, generate a new Private Key
+                else{
                 generateNewKey();
+                }
             }
+
+
+
+            
 
 
 
@@ -199,8 +247,8 @@
             
             //derive share secret (you are user1)
             async function deriveSecret(User1, User2){
-                console.log("Debug: User1 ECDH Private Key", User1.privateKey); //Debug Msg: generate success
-                console.log("Debug: User2 ECDH Public Key", User2.publicKey); //Debug Msg: generate success
+                console.log("Debug: User1 ECDH Private Key", User1.privateKey); //Debug Msg: get private key success
+                console.log("Debug: User2 ECDH Public Key", User2.publicKey); //Debug Msg: get public key success
                 const mySecret = await window.crypto.subtle.deriveKey(
                     {
                         name: "ECDH",
@@ -221,6 +269,70 @@
                 
             }
 
+            // step3: generate encryption key and MAC by shared secret--------------------------------------------------------------------
+            async function encryptKey_export(encryptKey,User){
+                const exportKey = await window.crypto.subtle.exportKey("jwk", encryptKey);
+                let tempExportEncryptArray = [...User.encryptKey];
+                let arrayLength = User.encryptKey.length;
+                let exportKeyMSG = {
+                    keyID: arrayLength,
+                    keyJWK: exportKey
+                }
+                
+                tempExportEncryptArray.push(exportKeyMSG);
+                localStorage.setItem("my_encryptKey", JSON.stringify(tempExportEncryptArray));
+
+                await encryptKey_import(User,exportKeyMSG);
+            }
+
+            async function encryptKey_import(User,exportKeyMSG){
+                //const jwk = JSON.parse(localStorage.getItem("my_encryptKey"));    
+                let tempEncryptArray = JSON.parse(localStorage.getItem("my_encryptKey"));
+                let targetIndex = tempEncryptArray.findIndex(item => item.keyID === exportKeyMSG.keyID);
+                let importKey = await window.crypto.subtle.importKey(
+                    "jwk", 
+                    tempEncryptArray[targetIndex].keyJWK, 
+                    { name: "AES-GCM", length: 256 },
+                    true, 
+                    ["encrypt", "decrypt"],
+                );
+                User.updateEncryptKey(importKey);
+                
+            }
+
+
+            async function deriveEcryptKey(User1){
+                console.log("Debug: User secret Key", User1.secret); //Debug Msg: get secret success
+                console.log("Debug: User salt", User1.salt); //Debug Msg: get salt success
+                let infoString = User1.encryptKey.length;
+                let encrpytKey = await window.crypto.subtle.deriveKey(
+                    {
+                        name: "HKDF",
+                        salt: User1.salt,
+                        info: new Uint8Array(infoString),
+                        hash: "SHA-256",
+                    },
+                    User1.secret,
+                    { name: "AES-GCM", length: 256 },
+                    true,
+                    ["encrypt", "decrypt"],
+                )
+                await encryptKey_export(encrpytKey, User1);
+                User1.updateSalt();
+                
+                console.log("Debug: Shared encryptKey DONE", User1.encryptKey[User1.encryptKey.length-1]) //Debug Msg: generate success
+                console.log("Debug: User salt", User1.salt); //Debug Msg: get salt success
+
+
+            }
+
+
+
+
+
+
+
+
 
 
             //-------------------------------------
@@ -240,6 +352,7 @@
                 await generateECDH(Alice);
                 await dummyBob(Bob);
                 await deriveSecret(Alice,Bob);
+                await deriveEcryptKey(Alice);
 
 
             }
