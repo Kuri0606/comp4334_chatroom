@@ -1,0 +1,5 @@
+mysql:
+  host: 'mysql'
+  user: 'chatuser'
+  password: 'dbpassword'
+  db: 'chatroomdb'
