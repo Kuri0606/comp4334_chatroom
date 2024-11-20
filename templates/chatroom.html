@@ -55,11 +55,14 @@
                     this.privateKey;
                     this.publicKey;
                     this.secret;
-                    this.macKey;
+                    this.macKey = [];
                     this.encryptKey = [];
+                    this.receiver = [];
+                    //this.keyID = [];
                     this.salt = new Uint8Array(16);
-                    this.myIV = new Uint8Array(16);
 
+
+                    // get back previous key from local storage
                    
                     const tempEncryptArray = localStorage.getItem('my_encryptKey');
                     // get encryptArray
@@ -68,7 +71,25 @@
                         localStorage.setItem('my_encryptKey', JSON.stringify(this.encryptKey));
                     }
                     else{
-                        this.encryptKey = JSON.parse(tempEncryptArray);
+                        const tempEncryptJson = JSON.parse(tempEncryptArray);
+                        for(let i = 0; i < tempEncryptJson.length; i++){
+                            encryptKey_import(this,tempEncryptJson[i]);
+                        }
+                        const tempEncryptArrayAfter = localStorage.getItem('my_encryptKey');
+
+                    }
+
+                    const tempMacArray = localStorage.getItem('my_macKey');
+                    // get macArray
+                    if(tempMacArray == null){
+                        //if no existing macKey array, create a new one
+                        localStorage.setItem('my_macKey', JSON.stringify(this.macKey));
+                    }
+                    else{
+                        const tempMacJson = JSON.parse(tempMacArray);
+                        for(let i = 0; i < tempMacJson.length; i++){
+                            macKey_import(this,tempMacJson[i]);
+                        }
                     }
 
                     
@@ -97,8 +118,8 @@
                     this.secret = key;
                 }
 
-                updateMac(key){
-                    this.macKey = key;
+                updateMacKey(key){
+                    this.macKey.push(key);
                 }
 
                 updateEncryptKey(key){
@@ -119,6 +140,10 @@
                         
                     }
                     localStorage.setItem('my_salt', JSON.stringify(Array.from(this.salt)));
+                }
+
+                updateIV(){
+
                 }
 
 
@@ -229,7 +254,7 @@
             // step2: generate share secret--------------------------------------------------------------------
 
             //create a dummy friend Bob for debug-------------
-            async function dummyBob(User){
+            async function dummyBob(){
                 let dummyKey =  await window.crypto.subtle.generateKey(
                 {
                     name: "ECDH",
@@ -238,21 +263,26 @@
                 true,
                 ["deriveKey"],
                 )
-                    User.updatePrivateKey(await dummyKey.privateKey);
                     console.log("Debug: Bob ECDH Privatte Key DONE", dummyKey.privateKey) //Debug Msg: generate success
-                    User.updatePublicKey(await dummyKey.publicKey);
                     console.log("Debug: Bob ECDH Public Key DONE", dummyKey.publicKey) //Debug Msg: generate success
+
+                receiverJSON = {
+                    key: dummyKey.publicKey,
+                    name: "BOB"
+                }
+
+                return receiverJSON;
             
             }
-            
+
             //derive share secret (you are user1)
-            async function deriveSecret(User1, User2){
+            async function deriveSecret(User1, receiver){
                 console.log("Debug: User1 ECDH Private Key", User1.privateKey); //Debug Msg: get private key success
-                console.log("Debug: User2 ECDH Public Key", User2.publicKey); //Debug Msg: get public key success
+                console.log("Debug: User2 ECDH Public Key", receiver.key); //Debug Msg: get public key success
                 const mySecret = await window.crypto.subtle.deriveKey(
                     {
                         name: "ECDH",
-                        public: User2.publicKey,
+                        public: receiver.key,
                     },
                     User1.privateKey,
                     {
@@ -264,15 +294,20 @@
                 )
                     User1.updateSecret(await mySecret);
                     console.log("Debug: Shared secret DONE", User1.secret) //Debug Msg: generate success
+
+                    return mySecret;
                 
 
                 
             }
 
-            // step3: generate encryption key and MAC by shared secret--------------------------------------------------------------------
+            // step3: generate encryption key by shared secret--------------------------------------------------------------------
+            // export encryptKey to local storage
             async function encryptKey_export(encryptKey,User){
                 const exportKey = await window.crypto.subtle.exportKey("jwk", encryptKey);
-                let tempExportEncryptArray = [...User.encryptKey];
+                let tempExportEncryptArray = localStorage.getItem('my_encryptKey');
+                if(tempExportEncryptArray != null)tempExportEncryptArray = JSON.parse(tempExportEncryptArray);
+
                 let arrayLength = User.encryptKey.length;
                 let exportKeyMSG = {
                     keyID: arrayLength,
@@ -285,6 +320,7 @@
                 await encryptKey_import(User,exportKeyMSG);
             }
 
+            // import encryptKey from local storage
             async function encryptKey_import(User,exportKeyMSG){
                 //const jwk = JSON.parse(localStorage.getItem("my_encryptKey"));    
                 let tempEncryptArray = JSON.parse(localStorage.getItem("my_encryptKey"));
@@ -300,7 +336,7 @@
                 
             }
 
-
+            // derive encryptKey
             async function deriveEcryptKey(User1){
                 console.log("Debug: User secret Key", User1.secret); //Debug Msg: get secret success
                 console.log("Debug: User salt", User1.salt); //Debug Msg: get salt success
@@ -320,10 +356,205 @@
                 await encryptKey_export(encrpytKey, User1);
                 User1.updateSalt();
                 
-                console.log("Debug: Shared encryptKey DONE", User1.encryptKey[User1.encryptKey.length-1]) //Debug Msg: generate success
+                console.log("Debug: encryptKey DONE", User1.encryptKey[User1.encryptKey.length-1]) //Debug Msg: generate success
+                console.log("Debug: User salt", User1.salt); //Debug Msg: get salt success
+
+                return User1.encryptKey.length-1;
+            }
+
+            
+            // step4: generate MAC key by encryptKey--------------------------------------------------------------------
+            // export MAC to local storage
+            async function macKey_export(macKey,User){
+                const exportKey = await window.crypto.subtle.exportKey("jwk", macKey);
+                let tempExportMacArray = localStorage.getItem('my_macKey');
+                if(tempExportMacArray != null)tempExportMacArray = JSON.parse(tempExportMacArray);
+
+                let arrayLength = User.macKey.length;
+                let exportKeyMSG = {
+                    keyID: arrayLength,
+                    keyJWK: exportKey
+                }
+                
+                tempExportMacArray.push(exportKeyMSG);
+                localStorage.setItem("my_macKey", JSON.stringify(tempExportMacArray));
+
+                await macKey_import(User,exportKeyMSG);
+            }
+
+            // import MAC from local storage
+            async function macKey_import(User,exportKeyMSG){
+                //const jwk = JSON.parse(localStorage.getItem("my_encryptKey"));    
+                let tempMacArray = JSON.parse(localStorage.getItem("my_macKey"));
+                let targetIndex = tempMacArray.findIndex(item => item.keyID === exportKeyMSG.keyID);
+                let importKey = await window.crypto.subtle.importKey(
+                    "jwk", 
+                    tempMacArray[targetIndex].keyJWK, 
+                    { name: "HMAC", hash: "SHA-256" },
+                    true, 
+                    ["sign", "verify"],
+                );
+
+                User.updateMacKey(importKey);
+                
+            }
+
+            // derive MAC
+            async function deriveMACKey(User1,secretKey){
+                console.log("Debug: User Secret Key", secretKey); //Debug Msg: get secret success
+                console.log("Debug: User salt", User1.salt); //Debug Msg: get salt success
+                let infoString = User1.macKey.length;
+                let macKey = await window.crypto.subtle.deriveKey(
+                    {
+                        name: "HKDF",
+                        salt: User1.salt,
+                        info: new Uint8Array(infoString),
+                        hash: "SHA-256",
+                    },
+                    secretKey,
+                    { name: "HMAC", hash: "SHA-256" },
+                    true,
+                    ["sign", "verify"],
+                )
+                await macKey_export(macKey, User1);
+                User1.updateSalt();
+                
+                console.log("Debug: MAC Key DONE", User1.macKey[User1.macKey.length-1]) //Debug Msg: generate success
                 console.log("Debug: User salt", User1.salt); //Debug Msg: get salt success
 
 
+            }
+
+            //-------------------------------------
+
+            // Encryption / Decryption function
+
+            // encryption
+            async function encryptMessage(msg, encryptKey){
+                console.log("Debug: Start encrypt", msg); //Debug Msg: start encrpyt message
+                console.log("Debug: Using encrypt key", encryptKey); //Debug Msg: start encrpyt message
+                let encoder = new TextEncoder();
+                let encodedMSG = encoder.encode(msg);
+
+                const iv = await window.crypto.getRandomValues(new Uint8Array(12));
+                let cipherText = await window.crypto.subtle.encrypt(
+                { 
+                    name: "AES-GCM", iv: iv },
+                    encryptKey,
+                    encodedMSG,
+                );
+
+                let cipherText_IV = {
+                    cipherText:cipherText,
+                    IV: iv
+                }
+
+                return cipherText_IV;
+            }
+
+            async function signMac(msg, macKey){
+                console.log("Debug: Start MAC", msg); //Debug Msg: start HMAC message
+                console.log("Debug: Using mac key", macKey); //Debug Msg: start encrpyt message
+                let encoder = new TextEncoder();
+                let encodedMSG = encoder.encode(msg);
+                let sign = await window.crypto.subtle.sign(
+                    {
+                    name: "HMAC",
+                    hash: { name: "SHA-256" },
+                    }, 
+                    macKey, 
+                    encodedMSG
+                );
+                console.log("Debug: Signed", sign); //Debug Msg: get signed Message
+                return sign;
+
+
+            }
+
+            async function encThenMac(User1,User2,msg){
+                let cipherText_IV = await encryptMessage(msg,User1.encryptKey[0]);
+                let macSignature = await signMac(cipherText_IV.cipherText,User1.macKey[0]);
+                let signedMSG = {
+                    cipherText: cipherText_IV.cipherText,
+                    IV: cipherText_IV.IV,
+                    signature: macSignature,
+                }
+
+                return signedMSG;
+
+                
+            }
+
+            // decrpytion
+
+            async function decrpytMessage(decryptKey, cipherText, IV){
+                console.log("Debug: Start Decrypt", cipherText, "with IV ", IV); //Debug Msg: start HMAC message
+                console.log("Debug: Using decrypt key", decryptKey); //Debug Msg: start encrpyt message
+
+                let plaintext;
+
+                try{
+                    plaintext = await window.crypto.subtle.decrypt(
+                        { 
+                            name: "AES-GCM", iv: IV
+                        }, 
+                        decryptKey, 
+                        cipherText
+                    );
+
+
+                }catch(error){
+                    await console.error(error);
+                }
+
+                let decoder = new TextDecoder();
+                plaintext = decoder.decode(plaintext);
+                console.log("Debug: End decrypt", plaintext); //Debug Msg: get cipherText and IV
+                return plaintext;
+                
+
+            }
+
+
+            async function verifyMac(macKey, signature, cipherText){
+                console.log("Debug: Start verify MAC", signature, "for ", cipherText); //Debug Msg: start HMAC message
+                console.log("Debug: Using MAC key", macKey); //Debug Msg: start encrpyt message
+
+                let verified = false;
+
+                let encoder = new TextEncoder();
+                let encodedMSG = encoder.encode(cipherText);
+
+
+                try{
+                    verified = await window.crypto.subtle.verify(
+                        { 
+                            name: "HMAC",
+                            hash: { name: "SHA-256" }
+                        }, 
+                        macKey, 
+                        signature,
+                        encodedMSG
+                    );
+
+                    console.log("Debug: MAC Verify", verified); //Debug Msg: get cipherText and IV
+                    return verified;
+                
+
+                }catch(error){
+                    await console.error(error);
+                }
+                
+            }
+
+
+            async function verThenDec(User1, signedMSG){
+                let plaintext = "decrypt failed";
+                verifiedResult = await verifyMac(User1.macKey[0], signedMSG.signature, signedMSG.cipherText);
+                if(verifiedResult == true){
+                    plaintext = decrpytMessage(User1.encryptKey[0], signedMSG.cipherText, signedMSG.IV);
+                }
+                return plaintext
             }
 
 
@@ -335,24 +566,22 @@
 
 
 
-            //-------------------------------------
-
-            // Encryption / Decryption function
 
             //--------------start-----------------------
             
             
             async function runProgram(){
 
-                const Alice = new User("User");
-                const Bob = new User("Bob");
-
-                
+                const Alice = new User("User");       
 
                 await generateECDH(Alice);
-                await dummyBob(Bob);
-                await deriveSecret(Alice,Bob);
-                await deriveEcryptKey(Alice);
+                let receiver = await dummyBob("Bob");
+                let secret = await deriveSecret(Alice,receiver);
+                let indexMAC = await deriveEcryptKey(Alice);
+                await deriveMACKey(Alice, secret);
+                let test = await encThenMac(Alice,receiver,"Hi");
+                await verThenDec(Alice, test);
+
 
 
             }
