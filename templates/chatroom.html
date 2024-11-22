@@ -10,7 +10,7 @@
     </head>
 
     <body>
-        <div>
+        <div class="UI_Background">
             <h2>Welcome,</h2>
 
             <!-- message container -->
@@ -18,30 +18,30 @@
 
             </div>
 
-            <br>
+            <div class="bot_bar">
+                <!-- send button-->
+                <div class="verticle_center_align">
+                    <button id="KeyExchange">
+                        Key
+                    </button>
+                </div>
 
+                <!-- message input -->
+                <textarea id="messageInput">
 
-            <!-- message input -->
-            <textarea id="messageInput">
+                </textarea>
 
-            </textarea>
-
-            <br>
-
-            <!-- send button-->
-            <button id="messageSend">
-                Send
-            </button>
-
-            <!-- send button-->
-            <button id="KeyExchange">
-                Exchange
-            </button>
-
-
-            
+                <!-- send button-->
+                <div class="verticle_center_align">
+                    <button id="messageSend">
+                        >
+                    </button>
+                </div>
+            </div>
 
         </div>
+
+        <br>
 
         <!-- user selection sidebar-->
         <div class="sidebar">
@@ -80,7 +80,7 @@
                     this.macKey = [];
                     this.encryptKey = [];
                     this.receiver = [];
-                    //this.keyID = [];
+                    this.keyID = [];
                     this.salt = new Uint8Array(16);
 
 
@@ -97,7 +97,6 @@
                         for(let i = 0; i < tempEncryptJson.length; i++){
                             encryptKey_import(this,tempEncryptJson[i]);
                         }
-                        const tempEncryptArrayAfter = localStorage.getItem('my_encryptKey');
 
                     }
 
@@ -112,6 +111,20 @@
                         for(let i = 0; i < tempMacJson.length; i++){
                             macKey_import(this,tempMacJson[i]);
                         }
+                    }
+
+                    const tempKeyIDArray = localStorage.getItem('my_keyID');
+                    // get encryptArray
+                    if(tempKeyIDArray == null){
+                        //if no existing encryptKey array, create a new one
+                        localStorage.setItem('my_keyID', JSON.stringify(this.keyID));
+                    }
+                    else{
+                        const tempKeyIDJson = JSON.parse(tempKeyIDArray);
+                        for(let i = 0; i < tempKeyIDJson.length; i++){
+                            this.keyID.push(tempKeyIDJson[i]);
+                        }
+
                     }
 
                     
@@ -164,8 +177,9 @@
                     localStorage.setItem('my_salt', JSON.stringify(Array.from(this.salt)));
                 }
 
-                updateIV(){
-
+                updateKeyID(id){
+                    this.keyID.push(id);
+                    localStorage.setItem("my_keyID", JSON.stringify(this.keyID));
                 }
 
 
@@ -617,6 +631,10 @@
             let receiver_name = '';
             let user_id_name = {};
 
+            let first_exchanger = -1;
+            let second_exchanger = -1;
+            let timeStamp_from_first = "";
+
             
 
             // chat room function
@@ -678,15 +696,34 @@
             $('#KeyExchange').click( async function() {
                 console.log("Debug:   Exchange Public Key: ", Alice.publicKey);
                 const exportKey = await window.crypto.subtle.exportKey("jwk", Alice.publicKey);
+                
+                let timestamp;
+
+                if(first_exchanger == -1 && second_exchanger == -1){
+                    first_exchanger = 1;
+                    timestamp = getCurrentTimestamp();
+                }else{
+                    if(first_exchanger == -1 && second_exchanger == 1){
+                        timestamp = timeStamp_from_first;
+                    }
+                }
 
 
                 const data = {
                     sender_id: client_id,
                     receiver_id: receiver_id,
-                    publicKey: JSON.stringify(exportKey)
+                    publicKey: JSON.stringify(exportKey),
+                    time: timestamp
                 };
                 socket.emit('send_public_key', data);
-                console.log("Debug: Sending public key to server, Client ID: ", client_id, " Receiver ID: ", receiver_id, " Public Key: ", data.publicKey);
+                console.log("Debug: Sending public key to server, Client ID: ", client_id, " Receiver ID: ", receiver_id, " Public Key: ", data.publicKey, "Timestamp: ", data.time);
+
+                if(first_exchanger == -1 && second_exchanger == 1){
+                    second_exchanger = -1;
+                    timeStamp_from_first = "";
+                    
+                }
+
             });
 
             /*
@@ -706,7 +743,12 @@
 
             //receive public key
             socket.on('receive_public_key', async function(data) {
-                console.log("Debug: Receiving public key - Sender ID: ", data.sender_id, " Receiver ID: ", data.receiver_id, " Public Key: ", data.publicKey);
+                if(first_exchanger == -1 && second_exchanger == -1){
+                    second_exchanger = 1;
+                    timeStamp_from_first = data.time;
+                }
+
+                console.log("Debug: Receiving public key - Sender ID: ", data.sender_id, " Receiver ID: ", data.receiver_id, " Public Key: ", data.publicKey, "Timestamp: ", data.time);
                 const jwk = JSON.parse(data.publicKey);    
                     let importKey = await window.crypto.subtle.importKey(
                         "jwk", 
@@ -720,6 +762,11 @@
 
                 await deriveEcryptKey(Alice);
                 await deriveMACKey(Alice, secret);
+                Alice.updateKeyID(data.time);
+
+                if(first_exchanger == 1 && second_exchanger == -1){
+                    first_exchanger=-1;
+                }
             });
 
             
