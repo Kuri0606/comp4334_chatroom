@@ -1,46 +1,88 @@
+.UI_Background{
+    margin-left: 10px;
+}
+
+
 #messageShow{
-    width:500px;
-    height: 500px;
-    border: black 3px solid;
+    width:640px;
+    height: 700px;
+    /*border: black 1px solid;*/
     overflow-y: auto;
     overflow-x: hidden;
 
     scrollbar-color: grey transparent;
     scrollbar-width: thin;
+    
+}
+
+.bot_bar{
+    display: flex;
+    width:640px;
+    height: 80px;
 
 }
 
+.verticle_center_align{
+    display: flex;
+    height: 80px;
+    align-items: center;
+}
+
 #messageInput{
-    width: 500px;
-    height: 200px;
-    overflow: auto;
+    margin:10px;
+    width: 530px;
+    height: 60px;
+
+    overflow-y: auto;
+    overflow-x: hidden;
+
+    scrollbar-color: grey transparent;
+    scrollbar-width: thin;
 }
 
 #messageSend{
     cursor: pointer;
+    width: 55px;
+    height: 55px;
+    background-color: #2259be; 
+
+    border-radius: 50%;
+    border: none;
+    transition: background-color 0.3s;
+
+    color: white;
 }
 
 #messageSend:hover{
-    background-color: grey;
+    background-color: rgb(130, 255, 249);
 }
 
 #KeyExchange{
     cursor: pointer;
+    width: 55px;
+    height: 55px;
+
+    border-radius: 50%;
+    border: none;
+    background-color: #2259be; 
+    transition: background-color 0.3s;
+
+    color: white;
 }
 
 #KeyExchange:hover{
-    background-color: grey;
+    background-color: rgb(130, 255, 249);
 }
 
 .message_align_left{
     display: flex;
-    width:500px;
+    width:640px;
 }
 
 .message_align_right{
     display: flex;
     justify-content: end;
-    width:480px;
+    width:620px;
 }
 
 #sent_message {
