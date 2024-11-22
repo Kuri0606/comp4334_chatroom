@@ -99,6 +99,16 @@ def handle_handshake(data):
         user_id_sid[int(client_id)]
     print("Client handshake! client's user_id:", client_id, " sid:", request.sid)
 
+@socketio.on('send_public_key')
+def handle_send_publicKey(data):
+    receiver_id = data['receiver_id']
+    receiver_sid = user_id_sid.get(int(receiver_id))
+    if receiver_sid:
+        emit('receive_public_key', data['publicKey'], to=receiver_sid)
+    else:
+        print(f"Receiver {receiver_id} is not connected.")
+    
+
 # handle sent mesaage from clients
 @socketio.on('send_message')
 def handle_send_message(data):
