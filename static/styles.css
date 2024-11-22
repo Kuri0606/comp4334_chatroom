@@ -15,3 +15,24 @@
     width: 50px;
     height: 35px;
 }
+
+.sent_message {
+    display: flex;
+    justify-content: flex-end; 
+    background-color: #d1e7dd;
+    border-radius: 10px;
+    padding: 5px;
+    margin: 5px;
+    color: black;
+}
+
+.received_message {
+    display: flex;
+    justify-content: flex-start; 
+    background-color: #2259be; 
+    border-radius: 10px;
+    padding: 5px;
+    margin: 5px;
+    color: white;
+}
+

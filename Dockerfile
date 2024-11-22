@@ -24,5 +24,5 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Expose port 5000
 EXPOSE 5000
 
-# Run the application using Gunicorn
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "app:app"]
+# Run the application using Gunicorn with gevent (for socket.io)
+CMD ["gunicorn", "--worker-class", "gevent", "--bind", "0.0.0.0:5000", "app:app"]

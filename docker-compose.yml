@@ -8,12 +8,12 @@ services:
       - "5000:5000"
     environment:
       - FLASK_ENV=development
-      - MYSQL_HOST=db
+      - MYSQL_HOST=mysql
       - MYSQL_USER=chatuser
       - MYSQL_PASSWORD=dbpassword
       - MYSQL_DB=chatroomdb
     volumes:
-      - ./db.yaml:/app/db.yaml
+      - .:/app
     depends_on:
       - mysql
     restart: always
@@ -21,15 +21,20 @@ services:
   mysql:
     image: mysql:8.0
     environment:
-      MYSQL_ROOT_PASSWORD: rootpassword
-      MYSQL_DATABASE: chatroomdb
-      MYSQL_USER: chatuser
-      MYSQL_PASSWORD: dbpassword
+      - MYSQL_ROOT_PASSWORD=rootpassword
+      - MYSQL_DATABASE=chatroomdb
+      - MYSQL_USER=chatuser
+      - MYSQL_PASSWORD=dbpassword
     ports:
       - "3306:3306"
     volumes:
-      - mysql-data:/var/lib/mysql
+      - ./mysql-data:/var/lib/mysql
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     restart: always
 
   nginx:
