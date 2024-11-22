@@ -104,7 +104,7 @@ def handle_send_publicKey(data):
     receiver_id = data['receiver_id']
     receiver_sid = user_id_sid.get(int(receiver_id))
     if receiver_sid:
-        emit('receive_public_key', data['publicKey'], to=receiver_sid)
+        emit('receive_public_key', data, to=receiver_sid)
     else:
         print(f"Receiver {receiver_id} is not connected.")
     
