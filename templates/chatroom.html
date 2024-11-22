@@ -11,7 +11,7 @@
 
     <body>
         <div>
-            <h2>Hi, user</h2>
+            <h2>Welcome,</h2>
 
             <!-- message container -->
             <div id="messageShow">
@@ -636,7 +636,7 @@
                         user_id_name[user_id] = username;
                         
                         console.log("Debug: Generating user list - User ID: ", user_id, " Username: ", username);
-                        var listItem = $('<li>').text(username+' #'+user_id).attr({
+                        var listItem = $('<li id="userListItem">').text(username+' #'+user_id).attr({
                             'user_id': user_id,
                             'username': username                      
                         });
@@ -807,22 +807,45 @@
                 const messageShow = document.getElementById('messageShow');
                 const messageElement = document.createElement('div');
                 // decrypt message here
-                messageElement.textContent = message;
-                messageShow.appendChild(addStyleMessage(messageElement, sender_id, receiver_id));
+                //messageElement.textContent = message;
+                messageShow.appendChild(addStyleMessage(messageElement, sender_id, receiver_id, message));
                 console.log("Debug: Displaying message - Sender ID: ", sender_id, " Receiver ID: ", receiver_id, " Message: ", message);
                 messageElement.scrollTop = messageElement.scrollHeight;
                 messageShow.scrollTop = messageShow.scrollHeight;
             }
 
             // add style to sent and received messages
-            function addStyleMessage(messageElement, sender_id, receiver_id){
+            /*
+                            <div id="msg_time">
+                                ${message.time}
+                            </div>
+            */
+            function addStyleMessage(messageElement, sender_id, receiver_id, message){
                 // message sent from client
                 if (sender_id == client_id){
+                    messageElement.innerHTML = 
+                    `
+                    <div class="message_align_right">
+                        <div id="sent_message">
+                            ${message}
+                        </div>
+                    </div>
+                    `
+                    ;
                     messageElement.classList.add('sent_message');
                     console.log("Debug: Sent by Client - Client ID: ", sender_id);
                 }
                 // message received by client
                 else if (receiver_id == client_id){
+                    messageElement.innerHTML = 
+                    `
+                    <div class="message_align_left">
+                        <div id="received_message">
+                            ${message}  
+                        </div>
+                    </div>
+                    `
+                    ;
                     messageElement.classList.add('received_message');
                     console.log("Debug: Sent by Peer - Peer ID: ", receiver_id);
                 }
