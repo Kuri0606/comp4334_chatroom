@@ -33,6 +33,14 @@
                 Send
             </button>
 
+            <!-- send button-->
+            <button id="KeyExchange">
+                Exchange
+            </button>
+
+
+            
+
         </div>
 
         <!-- user selection sidebar-->
@@ -54,164 +62,9 @@
 
         <!-- Script -->
         <script type="text/javascript">
-            const client_id = '{{ client_id }}';
-            const client_name = '{{ username }}';
-            let receiver_id = -1;
-            let receiver_name = '';
-            let user_id_name = {};
-
-            // chat room function
-            var socket = io();
-            // use below if ssl is enabled
-            // const socket = io.connect('wss://' + document.domain + ':' + location.port);
-
-            // generate user select list
-            $(document).ready(function() {
-                fetch('/users')
-                .then(response => response.json())
-                .then(data => {
-                    console.log("Debug: Getting user list: ", data);
-                    data.users.forEach(user => {
-                        const user_id = user[0];
-                        const username = user[1];
-                        user_id_name[user_id] = username;
-                        
-                        console.log("Debug: Generating user list - User ID: ", user_id, " Username: ", username);
-                        var listItem = $('<li>').text(username+' #'+user_id).attr({
-                            'user_id': user_id,
-                            'username': username                      
-                        });
-                        // select user
-                        listItem.click(function() {
-                            receiver_id = $(this).attr('user_id');
-                            receiver_name = $(this).attr('username');
-                            $('#userList li').removeClass('selected');
-                            $(this).addClass('selected');
-                            console.log("Debug: Selected user - User ID: ", receiver_id, " Username: ", receiver_name);
-                            // erase previous messages
-                            $('#messageShow').empty();
-                            // load history messages                            
-                            request_history_message();
-                        });
-                        $('#userList').append(listItem);
-                    });
-                })
-            });
-
-            // load history messages from server which include both sender and receiver
-            function request_history_message() {
-                // send request to server
-                socket.emit('request_history_message', {sender_id: client_id, receiver_id: receiver_id});
-            }
-
-            // receive and load history messages
-            socket.on('receive_history_message', function(messages) {
-                console.log("Debug: Receiving history messages - Messages: ", messages);
-                messages.forEach(message => {
-                    console.log("Debug: Displaying history messages - Message: ", message.message_content, " Sender ID: ", message.sender_id, " Receiver ID: ", message.receiver_id);
-                    displayMessage(message.message_content, message.sender_id, message.receiver_id);
-                });
-                console.log("Debug: All history messages have loaded");
-            });
-
-            // Function to get the current timestamp
-            function getCurrentTimestamp() {
-                const now = new Date();
-                const year = now.getFullYear();
-                const month = String(now.getMonth() + 1).padStart(2, '0'); // (0-11)
-                const day = String(now.getDate()).padStart(2, '0');
-                const hours = String(now.getHours()).padStart(2, '0');
-                const minutes = String(now.getMinutes()).padStart(2, '0');
-                const seconds = String(now.getSeconds()).padStart(2, '0');
-
-                return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
-            }
             
-            // handshake
-            socket.on('connect', function() {
-                console.log("Debug: Connected to server, Client ID: ", client_id);
-                socket.emit('handshake', client_id);
-            });
 
-            // send public key
-            socket.on('send_public_key', function(public_key) {
-                const data = {
-                    sender_id: client_id,
-                    receiver_id: receiver_id,
-                    public_key: public_key
-                };
-                socket.emit('public_key', client_id);
-                console.log("Debug: Sending public key to server, Client ID: ", client_id, " Receiver ID: ", receiver_id, " Public Key: ", publicKey);
-            });
-
-            //receive public key
-            socket.on('receive_public_key', function(data) {
-                console.log("Debug: Receiving public key - Sender ID: ", data.sender_id, " Receiver ID: ", data.receiver_id, " Public Key: ", data.public_key);
-                return data.public_key;
-            });
-
-
-            // send message
-            $('#messageSend').click(function() {
-                const message = document.getElementById('messageInput').value;
-                // not accept empty message, only whitespace
-                if (message.trim() !== "" && receiver_id !== -1) {
-
-                    const data = {
-                        sender_id: client_id,
-                        receiver_id: receiver_id,
-                        // encrypt message
-                        message: message,
-                        time: getCurrentTimestamp()
-                    };
-                    // send to server
-                    socket.emit('send_message', data);
-                    console.log("Debug: Sending message - Sender ID: ", client_id, " Receiver ID: ", receiver_id, " Message: ", message);
-                    displayMessage(message, client_id, receiver_id);
-                    document.getElementById('messageInput').value = '';
-                } else {
-                    alert("Message cannot be empty!");
-                }
-            });
-        
-            // receive message
-            socket.on('receive_message', function(data) {
-                // decrypt message
-                console.log("Debug: Receiving message - Sender ID: ", data.sender_id, " Receiver ID: ", data.receiver_id, " Message: ", data.message);
-                const message = data.message;
-                const time = data.time;
-                const sender_id = data.sender_id;
-                const receiver_id = data.receiver_id;
-                displayMessage(message, sender_id, receiver_id);
-            });
-
-            // show history messages
-
-            function displayMessage(message, sender_id, receiver_id){
-                const messageShow = document.getElementById('messageShow');
-                const messageElement = document.createElement('div');
-                // decrypt message here
-                messageElement.textContent = message;
-                messageShow.appendChild(addStyleMessage(messageElement, sender_id, receiver_id));
-                console.log("Debug: Displaying message - Sender ID: ", sender_id, " Receiver ID: ", receiver_id, " Message: ", message);
-                messageElement.scrollTop = messageElement.scrollHeight;
-                messageShow.scrollTop = messageShow.scrollHeight;
-            }
-
-            // add style to sent and received messages
-            function addStyleMessage(messageElement, sender_id, receiver_id){
-                // message sent from client
-                if (sender_id == client_id){
-                    messageElement.classList.add('sent_message');
-                    console.log("Debug: Sent by Client - Client ID: ", sender_id);
-                }
-                // message received by client
-                else if (receiver_id == client_id){
-                    messageElement.classList.add('received_message');
-                    console.log("Debug: Sent by Peer - Peer ID: ", receiver_id);
-                }
-                return messageElement;
-            }
+            
 
 
             
@@ -445,13 +298,13 @@
             }
 
             //derive share secret (you are user1)
-            async function deriveSecret(User1, receiver){
+            async function deriveSecret(User1, receiverKey){ 
                 console.log("Debug: User1 ECDH Private Key", User1.privateKey); //Debug Msg: get private key success
-                console.log("Debug: User2 ECDH Public Key", receiver.key); //Debug Msg: get public key success
+                console.log("Debug: User2 ECDH Public Key", receiverKey); //Debug Msg: get public key success
                 const mySecret = await window.crypto.subtle.deriveKey(
                     {
                         name: "ECDH",
-                        public: receiver.key,
+                        public: receiverKey,
                     },
                     User1.privateKey,
                     {
@@ -634,22 +487,22 @@
                     macKey, 
                     encodedMSG
                 );
-                console.log("Debug: Signed", sign); //Debug Msg: get signed Message
+                console.log("Debug: Signed", await sign); //Debug Msg: get signed Message
                 return sign;
 
 
             }
 
-            async function encThenMac(User1,User2,msg){
-                let cipherText_IV = await encryptMessage(msg,User1.encryptKey[0]);
-                let macSignature = await signMac(cipherText_IV.cipherText,User1.macKey[0]);
+            async function encThenMac(User1,msg){
+                let cipherText_IV = await encryptMessage(msg,User1.encryptKey[User1.encryptKey.length-1]);
+                let macSignature = await signMac(cipherText_IV.cipherText,User1.macKey[User1.macKey.length-1]);
                 let signedMSG = {
                     cipherText: cipherText_IV.cipherText,
                     IV: cipherText_IV.IV,
                     signature: macSignature,
                 }
 
-                return signedMSG;
+                return await signedMSG;
 
                 
             }
@@ -678,7 +531,7 @@
 
                 let decoder = new TextDecoder();
                 plaintext = decoder.decode(plaintext);
-                console.log("Debug: End decrypt", plaintext); //Debug Msg: get cipherText and IV
+                console.log("Debug: End decrypt", await plaintext); //Debug Msg: get cipherText and IV
                 return plaintext;
                 
 
@@ -706,7 +559,7 @@
                         encodedMSG
                     );
 
-                    console.log("Debug: MAC Verify", verified); //Debug Msg: get cipherText and IV
+                    console.log("Debug: MAC Verify", await verified); //Debug Msg: get cipherText and IV
                     return verified;
                 
 
@@ -719,11 +572,11 @@
 
             async function verThenDec(User1, signedMSG){
                 let plaintext = "decrypt failed";
-                verifiedResult = await verifyMac(User1.macKey[0], signedMSG.signature, signedMSG.cipherText);
+                verifiedResult = await verifyMac(User1.macKey[User1.macKey.length-1], signedMSG.signature, signedMSG.cipherText);
                 if(verifiedResult == true){
-                    plaintext = decrpytMessage(User1.encryptKey[0], signedMSG.cipherText, signedMSG.IV);
+                    plaintext = await decrpytMessage(User1.encryptKey[User1.encryptKey.length-1], signedMSG.cipherText, signedMSG.IV);
                 }
-                return plaintext
+                return await plaintext
             }
 
 
@@ -744,13 +597,237 @@
                 const Alice = new User("User");       
 
                 await generateECDH(Alice);
-                let receiver = await dummyBob("Bob");
-                let secret = await deriveSecret(Alice,receiver);
+                /*
+                let receiverKey = await dummyBob("Bob");
+                let secret = await deriveSecret(Alice,receiverKey.publicKey);
                 let indexMAC = await deriveEcryptKey(Alice);
                 await deriveMACKey(Alice, secret);
-                let test = await encThenMac(Alice,receiver,"Hi");
+                let test = await encThenMac(Alice,"Hi");
                 await verThenDec(Alice, test);
+                */
 
+
+
+
+
+
+            const client_id = '{{ client_id }}';
+            const client_name = '{{ username }}';
+            let receiver_id = -1;
+            let receiver_name = '';
+            let user_id_name = {};
+
+            
+
+            // chat room function
+            var socket = io();
+            // use below if ssl is enabled
+            // const socket = io.connect('wss://' + document.domain + ':' + location.port);
+
+            // generate user select list
+            $(document).ready(function() {
+                fetch('/users')
+                .then(response => response.json())
+                .then(data => {
+                    console.log("Debug: Getting user list: ", data);
+                    data.users.forEach(user => {
+                        const user_id = user[0];
+                        const username = user[1];
+                        user_id_name[user_id] = username;
+                        
+                        console.log("Debug: Generating user list - User ID: ", user_id, " Username: ", username);
+                        var listItem = $('<li>').text(username+' #'+user_id).attr({
+                            'user_id': user_id,
+                            'username': username                      
+                        });
+                        // select user
+                        listItem.click(function() {
+                            receiver_id = $(this).attr('user_id');
+                            receiver_name = $(this).attr('username');
+                            $('#userList li').removeClass('selected');
+                            $(this).addClass('selected');
+                            console.log("Debug: Selected user - User ID: ", receiver_id, " Username: ", receiver_name);
+                            // erase previous messages
+                            $('#messageShow').empty();
+                            // load history messages                            
+                            request_history_message();
+                        });
+                        $('#userList').append(listItem);
+                    });
+                })
+            });
+
+            // receive and load history messages
+            socket.on('receive_history_message', function(messages) {
+                console.log("Debug: Receiving history messages - Messages: ", messages);
+                messages.forEach(message => {
+                    console.log("Debug: Displaying history messages - Message: ", message.message_content, " Sender ID: ", message.sender_id, " Receiver ID: ", message.receiver_id);
+                    displayMessage(message.message_content, message.sender_id, message.receiver_id);
+                });
+                console.log("Debug: All history messages have loaded");
+            });
+
+
+            // handshake
+            socket.on('connect', function() {
+                console.log("Debug: Connected to server, Client ID: ", client_id);
+                socket.emit('handshake', client_id);
+            });
+
+
+            $('#KeyExchange').click( async function() {
+                console.log("Debug:   Exchange Public Key: ", Alice.publicKey);
+                const exportKey = await window.crypto.subtle.exportKey("jwk", Alice.publicKey);
+
+
+                const data = {
+                    sender_id: client_id,
+                    receiver_id: receiver_id,
+                    publicKey: JSON.stringify(exportKey)
+                };
+                socket.emit('send_public_key', data);
+                console.log("Debug: Sending public key to server, Client ID: ", client_id, " Receiver ID: ", receiver_id, " Public Key: ", data.publicKey);
+            });
+
+            /*
+            // send public key  
+            socket.on('send_public_key', function(public_key) {
+                
+                const data = {
+                    sender_id: client_id,
+                    receiver_id: receiver_id,
+                    public_key: public_key
+                };
+                socket.emit('public_key', client_id);
+                console.log("Debug: Sending public key to server, Client ID: ", client_id, " Receiver ID: ", receiver_id, " Public Key: ", data.publicKey);
+                
+            });
+*/
+
+            //receive public key
+            socket.on('receive_public_key', async function(data) {
+                console.log("Debug: Receiving public key - Sender ID: ", data.sender_id, " Receiver ID: ", data.receiver_id, " Public Key: ", data.publicKey);
+                const jwk = JSON.parse(data.publicKey);    
+                    let importKey = await window.crypto.subtle.importKey(
+                        "jwk", 
+                        jwk, 
+                        { name: "ECDH", namedCurve: "P-384", }, 
+                        true, 
+                        [],
+                    );
+
+                let secret = await deriveSecret(Alice, importKey);
+
+                await deriveEcryptKey(Alice);
+                await deriveMACKey(Alice, secret);
+            });
+
+            
+            
+
+
+            // send message
+            $('#messageSend').click( async function() {
+                const message = document.getElementById('messageInput').value;
+                // not accept empty message, only whitespace
+                if (message.trim() !== "" && receiver_id !== -1) {
+
+
+                    const signedMSG = await encThenMac(Alice,message);
+                    const data = {
+                        sender_id: client_id,
+                        receiver_id: receiver_id,
+                        // encrypt message
+                        message: message,
+                        time: getCurrentTimestamp(),
+
+                        //
+                        cipherText: signedMSG.cipherText,
+                        iv: signedMSG.IV,
+                        signature: signedMSG.signature
+    
+                    };
+                    // send to server
+                    socket.emit('send_message', data);
+                    console.log("Debug: Sending message - Sender ID: ", client_id, " Receiver ID: ", receiver_id, " Message: ", message, " cipherText: ", data.cipherText, " IV: ", data.iv,  " signature: ", data.signature);
+                    displayMessage(message, client_id, receiver_id);
+                    document.getElementById('messageInput').value = '';
+                } else {
+                    alert("Message cannot be empty!");
+                }
+            });
+        
+            // receive message
+            socket.on('receive_message', async function(data) {
+                // decrypt message
+                console.log("Debug: Receiving message - Sender ID: ", data.sender_id, " Receiver ID: ", data.receiver_id, " Message: ", data.message, " cipherText: ", data.cipherText, " IV: ", data.iv, " signature: ", data.signature,);
+                const message = data.message;
+                const time = data.time;
+                const sender_id = data.sender_id;
+                const receiver_id = data.receiver_id;
+
+                const signedMSG={
+                    cipherText: data.cipherText,
+                    IV: data.iv,
+                    signature: data.signature
+                }
+                await verThenDec(Alice, signedMSG);
+                displayMessage(message, sender_id, receiver_id);
+            });
+
+            // load history messages from server which include both sender and receiver
+            function request_history_message() {
+                // send request to server
+                socket.emit('request_history_message', {sender_id: client_id, receiver_id: receiver_id});
+            }
+
+            
+
+            // Function to get the current timestamp
+            function getCurrentTimestamp() {
+                const now = new Date();
+                const year = now.getFullYear();
+                const month = String(now.getMonth() + 1).padStart(2, '0'); // (0-11)
+                const day = String(now.getDate()).padStart(2, '0');
+                const hours = String(now.getHours()).padStart(2, '0');
+                const minutes = String(now.getMinutes()).padStart(2, '0');
+                const seconds = String(now.getSeconds()).padStart(2, '0');
+
+                return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+            }
+            
+            
+
+
+            
+
+            // show history messages
+
+            function displayMessage(message, sender_id, receiver_id){
+                const messageShow = document.getElementById('messageShow');
+                const messageElement = document.createElement('div');
+                // decrypt message here
+                messageElement.textContent = message;
+                messageShow.appendChild(addStyleMessage(messageElement, sender_id, receiver_id));
+                console.log("Debug: Displaying message - Sender ID: ", sender_id, " Receiver ID: ", receiver_id, " Message: ", message);
+                messageElement.scrollTop = messageElement.scrollHeight;
+                messageShow.scrollTop = messageShow.scrollHeight;
+            }
+
+            // add style to sent and received messages
+            function addStyleMessage(messageElement, sender_id, receiver_id){
+                // message sent from client
+                if (sender_id == client_id){
+                    messageElement.classList.add('sent_message');
+                    console.log("Debug: Sent by Client - Client ID: ", sender_id);
+                }
+                // message received by client
+                else if (receiver_id == client_id){
+                    messageElement.classList.add('received_message');
+                    console.log("Debug: Sent by Peer - Peer ID: ", receiver_id);
+                }
+                return messageElement;
+            }
 
 
             }
