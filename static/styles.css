@@ -17,22 +17,25 @@
 }
 
 .sent_message {
-    display: flex;
-    justify-content: flex-end; 
     background-color: #d1e7dd;
     border-radius: 10px;
     padding: 5px;
     margin: 5px;
     color: black;
+    width: fit-content;
+    text-align: left;
+    margin-left:100px;
 }
 
 .received_message {
-    display: flex;
-    justify-content: flex-start; 
+    display:flex;
+    align-items:flex-end;
     background-color: #2259be; 
     border-radius: 10px;
     padding: 5px;
     margin: 5px;
     color: white;
+    width: fit-content;
+    text-align: left;
 }
 

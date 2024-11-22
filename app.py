@@ -108,6 +108,20 @@ def handle_send_publicKey(data):
     else:
         print(f"Receiver {receiver_id} is not connected.")
     
+# handle request for history messages
+@socketio.on('request_history_message')
+def handle_request_history_message(data):
+    sender_id = data['sender_id']
+    receiver_id = data['receiver_id']
+    cur = mysql.connection.cursor()
+    query = """SELECT sender_id, receiver_id, message_content FROM messages 
+               WHERE (sender_id = %s AND receiver_id = %s) OR (sender_id = %s AND receiver_id = %s)
+               ORDER BY created_time ASC"""
+    cur.execute(query, (sender_id, receiver_id, receiver_id, sender_id))
+    column_names = [desc[0] for desc in cur.description]
+    messages = [dict(zip(column_names, row)) for row in cur.fetchall()]
+    cur.close()
+    emit('receive_history_message', messages)
 
 # handle sent mesaage from clients
 @socketio.on('send_message')

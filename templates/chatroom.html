@@ -60,6 +60,11 @@
             let receiver_name = '';
             let user_id_name = {};
 
+            // chat room function
+            var socket = io();
+            // use below if ssl is enabled
+            // const socket = io.connect('wss://' + document.domain + ':' + location.port);
+
             // generate user select list
             $(document).ready(function() {
                 fetch('/users')
@@ -76,16 +81,37 @@
                             'user_id': user_id,
                             'username': username                      
                         });
+                        // select user
                         listItem.click(function() {
                             receiver_id = $(this).attr('user_id');
                             receiver_name = $(this).attr('username');
                             $('#userList li').removeClass('selected');
                             $(this).addClass('selected');
                             console.log("Debug: Selected user - User ID: ", receiver_id, " Username: ", receiver_name);
+                            // erase previous messages
+                            $('#messageShow').empty();
+                            // load history messages                            
+                            request_history_message();
                         });
                         $('#userList').append(listItem);
                     });
                 })
+            });
+
+            // load history messages from server which include both sender and receiver
+            function request_history_message() {
+                // send request to server
+                socket.emit('request_history_message', {sender_id: client_id, receiver_id: receiver_id});
+            }
+
+            // receive and load history messages
+            socket.on('receive_history_message', function(messages) {
+                console.log("Debug: Receiving history messages - Messages: ", messages);
+                messages.forEach(message => {
+                    console.log("Debug: Displaying history messages - Message: ", message.message_content, " Sender ID: ", message.sender_id, " Receiver ID: ", message.receiver_id);
+                    displayMessage(message.message_content, message.sender_id, message.receiver_id);
+                });
+                console.log("Debug: All history messages have loaded");
             });
 
             // Function to get the current timestamp
@@ -100,11 +126,6 @@
 
                 return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
             }
-
-            // chat room function
-            var socket = io();
-            // use below if ssl is enabled
-            // const socket = io.connect('wss://' + document.domain + ':' + location.port);
             
             // handshake
             socket.on('connect', function() {
@@ -169,10 +190,12 @@
             function displayMessage(message, sender_id, receiver_id){
                 const messageShow = document.getElementById('messageShow');
                 const messageElement = document.createElement('div');
+                // decrypt message here
                 messageElement.textContent = message;
                 messageShow.appendChild(addStyleMessage(messageElement, sender_id, receiver_id));
                 console.log("Debug: Displaying message - Sender ID: ", sender_id, " Receiver ID: ", receiver_id, " Message: ", message);
                 messageElement.scrollTop = messageElement.scrollHeight;
+                messageShow.scrollTop = messageShow.scrollHeight;
             }
 
             // add style to sent and received messages
