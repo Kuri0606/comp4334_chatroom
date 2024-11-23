@@ -18,6 +18,7 @@ CREATE TABLE messages (
     iv BLOB NOT NULL,
     sign BLOB NOT NULL,
     created_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    keyID VARCHAR(255) NOT NULL,
     FOREIGN KEY (sender_id) REFERENCES users(user_id),
     FOREIGN KEY (receiver_id) REFERENCES users(user_id)
 );
