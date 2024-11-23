@@ -1,52 +1,116 @@
+.UI_Background{
+    margin-left: 10px;
+}
+
+
 #messageShow{
-    width: 1000px;
-    height: 500px;
-    border: black 3px solid;
-    overflow: auto;
-    margin: 20px auto;
+    width:640px;
+    height: 700px;
+    /*border: black 1px solid;*/
+    overflow-y: auto;
+    overflow-x: hidden;
+
+    scrollbar-color: grey transparent;
+    scrollbar-width: thin;
+    
 }
 
-.messageInputColumn {
+.bot_bar{
     display: flex;
-    justify-content: center;
-    margin: 20px auto;
-    align-items: flex-start;
+    width:640px;
+    height: 80px;
+
 }
 
-#messageInput {
-    width: 850px;
-    height: 50px;
-    margin-right: 10px;
-    overflow: auto;
+.verticle_center_align{
+    display: flex;
+    height: 80px;
+    align-items: center;
 }
 
-#messageSend {
-    width: 100px;
-    height: 50px;
+#messageInput{
+    margin:10px;
+    width: 530px;
+    height: 60px;
+
+    overflow-y: auto;
+    overflow-x: hidden;
+
+    scrollbar-color: grey transparent;
+    scrollbar-width: thin;
 }
 
+#messageSend{
+    cursor: pointer;
+    width: 55px;
+    height: 55px;
+    background-color: #2259be; 
 
-.sent_message {
+    border-radius: 50%;
+    border: none;
+    transition: background-color 0.3s;
+
+    color: white;
+}
+
+#messageSend:hover{
+    background-color: rgb(130, 255, 249);
+}
+
+#KeyExchange{
+    cursor: pointer;
+    width: 55px;
+    height: 55px;
+
+    border-radius: 50%;
+    border: none;
+    background-color: #2259be; 
+    transition: background-color 0.3s;
+
+    color: white;
+}
+
+#KeyExchange:hover{
+    background-color: rgb(130, 255, 249);
+}
+
+.message_align_left{
+    display: flex;
+    width:640px;
+}
+
+.message_align_right{
+    display: flex;
+    justify-content: end;
+    width:620px;
+}
+
+#sent_message {
     background-color: #d1e7dd;
     border-radius: 10px;
     padding: 5px;
     margin: 5px;
     color: black;
+    max-width: 400px;
     width: fit-content;
-    text-align: left;
-    margin-left: auto;
+    display: inline-block;
+
+    white-space: normal; 
+    overflow-wrap: break-word;
 }
 
-.received_message {
-    display:flex;
-    align-items:flex-end;
+#received_message {
     background-color: #2259be; 
     border-radius: 10px;
     padding: 5px;
     margin: 5px;
     color: white;
+    max-width: 400px;
     width: fit-content;
-    text-align: left;
+    display: inline-block;
+
+    white-space: normal; 
+    overflow-wrap: break-word;
 }
 
 .chatPage{
@@ -88,4 +152,17 @@
     align-items: center;
     padding: 10px;
     border: 1px solid #333;
+}
+
+#userListItem{
+    cursor: pointer;
+    background-color: #d1e7dd;
+    padding: 5px;
+    border-radius: 10px;
+    width:450px;
+
+}
+
+#userListItem:hover{
+    background-color: #2259be; 
 }

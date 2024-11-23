@@ -10,7 +10,8 @@
     </head>
 
     <body>
-        <div class="chatPage">
+        <div class="UI_Background">
+            <h2>Welcome,</h2>
             <div class="contactors">
                 <div class="messageInputColumn">
                 <h2 class="textCenter">Contactors</h2>
@@ -30,25 +31,25 @@
                 <div>
                     <h2 id="selectedReceiver" class="textCenter"></h2>
         
-                    <!-- message container -->
-                    <div id="messageShow">
+                    <div class="bot_bar">
+                        <!-- send button-->
+                        <div class="verticle_center_align">
+                            <button id="KeyExchange">
+                                Key
+                            </button>
+                        </div>
         
-                    </div>
-                    
-                    <br>
-        
-                    <div class="messageInputColumn">
-
                         <!-- message input -->
                         <textarea id="messageInput">
-                            
+        
                         </textarea>
-            
+        
                         <!-- send button-->
-                        <button id="messageSend">
-                            Send
-                        </button>
-
+                        <div class="verticle_center_align">
+                            <button id="messageSend">
+                                >
+                            </button>
+                        </div>
                     </div>
         
                 </div>
@@ -65,19 +66,10 @@
         <!-- Socket.io -->
         <!-- integrity - not tampered, crossorigin - CORS -->
         <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.8.1/socket.io.js" integrity="sha512-8BHxHDLsOHx+flIrQ0DrZcea7MkHqRU5GbTHmbdzMRnAaoCIkZ97PqZcXJkKZckMMhqfoeaJE+DNUVuyoQsO3Q==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-
+        
         <!-- Script -->
         <script type="text/javascript">
-            const client_id = '{{ client_id }}';
-            const client_name = '{{ username }}';
-            let receiver_id = -1;
-            let receiver_name = '';
-            let user_id_name = {};
 
-            // chat room function
-            var socket = io();
-            // use below if ssl is enabled
-            // const socket = io.connect('wss://' + document.domain + ':' + location.port);
 
             // generate user select list
             $(document).ready(function() {
@@ -313,7 +305,7 @@
                     this.macKey = [];
                     this.encryptKey = [];
                     this.receiver = [];
-                    //this.keyID = [];
+                    this.keyID = [];
                     this.salt = new Uint8Array(16);
 
 
@@ -330,7 +322,6 @@
                         for(let i = 0; i < tempEncryptJson.length; i++){
                             encryptKey_import(this,tempEncryptJson[i]);
                         }
-                        const tempEncryptArrayAfter = localStorage.getItem('my_encryptKey');
 
                     }
 
@@ -345,6 +336,20 @@
                         for(let i = 0; i < tempMacJson.length; i++){
                             macKey_import(this,tempMacJson[i]);
                         }
+                    }
+
+                    const tempKeyIDArray = localStorage.getItem('my_keyID');
+                    // get encryptArray
+                    if(tempKeyIDArray == null){
+                        //if no existing encryptKey array, create a new one
+                        localStorage.setItem('my_keyID', JSON.stringify(this.keyID));
+                    }
+                    else{
+                        const tempKeyIDJson = JSON.parse(tempKeyIDArray);
+                        for(let i = 0; i < tempKeyIDJson.length; i++){
+                            this.keyID.push(tempKeyIDJson[i]);
+                        }
+
                     }
 
                     
@@ -397,8 +402,9 @@
                     localStorage.setItem('my_salt', JSON.stringify(Array.from(this.salt)));
                 }
 
-                updateIV(){
-
+                updateKeyID(id){
+                    this.keyID.push(id);
+                    localStorage.setItem("my_keyID", JSON.stringify(this.keyID));
                 }
 
 
@@ -531,13 +537,13 @@
             }
 
             //derive share secret (you are user1)
-            async function deriveSecret(User1, receiver){
+            async function deriveSecret(User1, receiverKey){ 
                 console.log("Debug: User1 ECDH Private Key", User1.privateKey); //Debug Msg: get private key success
-                console.log("Debug: User2 ECDH Public Key", receiver.key); //Debug Msg: get public key success
+                console.log("Debug: User2 ECDH Public Key", receiverKey); //Debug Msg: get public key success
                 const mySecret = await window.crypto.subtle.deriveKey(
                     {
                         name: "ECDH",
-                        public: receiver.key,
+                        public: receiverKey,
                     },
                     User1.privateKey,
                     {
@@ -720,22 +726,22 @@
                     macKey, 
                     encodedMSG
                 );
-                console.log("Debug: Signed", sign); //Debug Msg: get signed Message
+                console.log("Debug: Signed", await sign); //Debug Msg: get signed Message
                 return sign;
 
 
             }
 
-            async function encThenMac(User1,User2,msg){
-                let cipherText_IV = await encryptMessage(msg,User1.encryptKey[0]);
-                let macSignature = await signMac(cipherText_IV.cipherText,User1.macKey[0]);
+            async function encThenMac(User1,msg){
+                let cipherText_IV = await encryptMessage(msg,User1.encryptKey[User1.encryptKey.length-1]);
+                let macSignature = await signMac(cipherText_IV.cipherText,User1.macKey[User1.macKey.length-1]);
                 let signedMSG = {
                     cipherText: cipherText_IV.cipherText,
                     IV: cipherText_IV.IV,
                     signature: macSignature,
                 }
 
-                return signedMSG;
+                return await signedMSG;
 
                 
             }
@@ -764,7 +770,7 @@
 
                 let decoder = new TextDecoder();
                 plaintext = decoder.decode(plaintext);
-                console.log("Debug: End decrypt", plaintext); //Debug Msg: get cipherText and IV
+                console.log("Debug: End decrypt", await plaintext); //Debug Msg: get cipherText and IV
                 return plaintext;
                 
 
@@ -792,7 +798,7 @@
                         encodedMSG
                     );
 
-                    console.log("Debug: MAC Verify", verified); //Debug Msg: get cipherText and IV
+                    console.log("Debug: MAC Verify", await verified); //Debug Msg: get cipherText and IV
                     return verified;
                 
 
@@ -805,11 +811,11 @@
 
             async function verThenDec(User1, signedMSG){
                 let plaintext = "decrypt failed";
-                verifiedResult = await verifyMac(User1.macKey[0], signedMSG.signature, signedMSG.cipherText);
+                verifiedResult = await verifyMac(User1.macKey[User1.macKey.length-1], signedMSG.signature, signedMSG.cipherText);
                 if(verifiedResult == true){
-                    plaintext = decrpytMessage(User1.encryptKey[0], signedMSG.cipherText, signedMSG.IV);
+                    plaintext = await decrpytMessage(User1.encryptKey[User1.encryptKey.length-1], signedMSG.cipherText, signedMSG.IV);
                 }
-                return plaintext
+                return await plaintext
             }
 
 
@@ -830,13 +836,317 @@
                 const Alice = new User("User");       
 
                 await generateECDH(Alice);
-                let receiver = await dummyBob("Bob");
-                let secret = await deriveSecret(Alice,receiver);
+                /*
+                let receiverKey = await dummyBob("Bob");
+                let secret = await deriveSecret(Alice,receiverKey.publicKey);
                 let indexMAC = await deriveEcryptKey(Alice);
                 await deriveMACKey(Alice, secret);
-                let test = await encThenMac(Alice,receiver,"Hi");
+                let test = await encThenMac(Alice,"Hi");
                 await verThenDec(Alice, test);
+                */
 
+
+
+
+
+
+            const client_id = '{{ client_id }}';
+            const client_name = '{{ username }}';
+            let receiver_id = -1;
+            let receiver_name = '';
+            let user_id_name = {};
+
+            let first_exchanger = -1;
+            let second_exchanger = -1;
+            let timeStamp_from_first = "";
+
+            
+
+            // chat room function
+            var socket = io();
+            // use below if ssl is enabled
+            // const socket = io.connect('wss://' + document.domain + ':' + location.port);
+
+            // generate user select list
+            $(document).ready(function() {
+                fetch('/users')
+                .then(response => response.json())
+                .then(data => {
+                    console.log("Debug: Getting user list: ", data);
+                    data.users.forEach(user => {
+                        const user_id = user[0];
+                        const username = user[1];
+                        user_id_name[user_id] = username;
+                        
+                        console.log("Debug: Generating user list - User ID: ", user_id, " Username: ", username);
+                        var listItem = $('<li id="userListItem">').text(username+' #'+user_id).attr({
+                            'user_id': user_id,
+                            'username': username                      
+                        });
+                        // select user
+                        listItem.click(function() {
+                            receiver_id = $(this).attr('user_id');
+                            receiver_name = $(this).attr('username');
+                            $('#userList li').removeClass('selected');
+                            $(this).addClass('selected');
+                            console.log("Debug: Selected user - User ID: ", receiver_id, " Username: ", receiver_name);
+                            // erase previous messages
+                            $('#messageShow').empty();
+                            // load history messages                            
+                            request_history_message();
+                        });
+                        $('#userList').append(listItem);
+                    });
+                })
+            });
+
+            // convert base64 string to ArrayBuffer
+            function base64ToArrayBuffer(base64) {
+                const binaryString = atob(base64);
+
+                const length = binaryString.length;
+                const bytes = new Uint8Array(length);
+
+                for (let i = 0; i < length; i++) {
+                    bytes[i] = binaryString.charCodeAt(i);
+                }
+
+                return bytes.buffer;
+            }
+
+            // receive and load history messages
+            socket.on('receive_history_message', function(messages) {
+                if (messages.length === 0) {
+                    console.log("Debug: No history messages");
+                    return;
+                }
+                console.log("Debug: Receiving history messages - Messages: ", messages);
+                messages.forEach(async message => {
+                    const time = new Date(message.created_time);
+                    const signedMSG = {
+                        cipherText: base64ToArrayBuffer(message.message_content),
+                        IV: base64ToArrayBuffer(message.iv),
+                        signature: base64ToArrayBuffer(message.sign)
+                    }
+                    const plain_message = await verThenDec(Alice, signedMSG);
+                    console.log("Debug: Displaying history messages - Message: ", plain_message, " Sender ID: ", message.sender_id, " Receiver ID: ", message.receiver_id);
+                    displayMessage(plain_message, message.sender_id, message.receiver_id);
+                });
+                console.log("Debug: All history messages have loaded");
+            });
+
+
+            // handshake
+            socket.on('connect', function() {
+                console.log("Debug: Connected to server, Client ID: ", client_id);
+                socket.emit('handshake', client_id);
+            });
+
+
+            $('#KeyExchange').click( async function() {
+                console.log("Debug:   Exchange Public Key: ", Alice.publicKey);
+                const exportKey = await window.crypto.subtle.exportKey("jwk", Alice.publicKey);
+                
+                let timestamp;
+
+                if(first_exchanger == -1 && second_exchanger == -1){
+                    first_exchanger = 1;
+                    timestamp = getCurrentTimestamp();
+                }else{
+                    if(first_exchanger == -1 && second_exchanger == 1){
+                        timestamp = timeStamp_from_first;
+                    }
+                }
+
+
+                const data = {
+                    sender_id: client_id,
+                    receiver_id: receiver_id,
+                    publicKey: JSON.stringify(exportKey),
+                    time: timestamp
+                };
+                socket.emit('send_public_key', data);
+                console.log("Debug: Sending public key to server, Client ID: ", client_id, " Receiver ID: ", receiver_id, " Public Key: ", data.publicKey, "Timestamp: ", data.time);
+
+                if(first_exchanger == -1 && second_exchanger == 1){
+                    second_exchanger = -1;
+                    timeStamp_from_first = "";
+                    
+                }
+
+            });
+
+            /*
+            // send public key  
+            socket.on('send_public_key', function(public_key) {
+                
+                const data = {
+                    sender_id: client_id,
+                    receiver_id: receiver_id,
+                    public_key: public_key
+                };
+                socket.emit('public_key', client_id);
+                console.log("Debug: Sending public key to server, Client ID: ", client_id, " Receiver ID: ", receiver_id, " Public Key: ", data.publicKey);
+                
+            });
+*/
+
+            //receive public key
+            socket.on('receive_public_key', async function(data) {
+                if(first_exchanger == -1 && second_exchanger == -1){
+                    second_exchanger = 1;
+                    timeStamp_from_first = data.time;
+                }
+
+                console.log("Debug: Receiving public key - Sender ID: ", data.sender_id, " Receiver ID: ", data.receiver_id, " Public Key: ", data.publicKey, "Timestamp: ", data.time);
+                const jwk = JSON.parse(data.publicKey);    
+                    let importKey = await window.crypto.subtle.importKey(
+                        "jwk", 
+                        jwk, 
+                        { name: "ECDH", namedCurve: "P-384", }, 
+                        true, 
+                        [],
+                    );
+
+                let secret = await deriveSecret(Alice, importKey);
+
+                await deriveEcryptKey(Alice);
+                await deriveMACKey(Alice, secret);
+                Alice.updateKeyID(data.time);
+
+                if(first_exchanger == 1 && second_exchanger == -1){
+                    first_exchanger=-1;
+                }
+            });
+
+            
+            
+
+
+            // send message
+            $('#messageSend').click( async function() {
+                const message = document.getElementById('messageInput').value;
+                // not accept empty message, only whitespace
+                if (message.trim() !== "" && receiver_id !== -1) {
+
+
+                    const signedMSG = await encThenMac(Alice,message);
+                    const data = {
+                        sender_id: client_id,
+                        receiver_id: receiver_id,
+                        // encrypt message
+                        //message: message,
+                        time: getCurrentTimestamp(),
+
+                        //
+                        cipherText: signedMSG.cipherText,
+                        iv: signedMSG.IV,
+                        signature: signedMSG.signature
+    
+                    };                    
+                    // send to server
+                    socket.emit('send_message', data);
+                    console.log("Debug: Sending message - Sender ID: ", client_id, " Receiver ID: ", receiver_id, " Message: ", message, " cipherText: ", data.cipherText, " IV: ", data.iv,  " signature: ", data.signature);
+                    displayMessage(message, client_id, receiver_id);
+                    document.getElementById('messageInput').value = '';
+                } else {
+                    alert("Message cannot be empty!");
+                }
+            });
+        
+            // receive message
+            socket.on('receive_message', async function(data) {
+                // decrypt message
+                console.log("Debug: Receiving message - Sender ID: ", data.sender_id, " Receiver ID: ", data.receiver_id, " Message: ", data.message, " cipherText: ", data.cipherText, " IV: ", data.iv, " signature: ", data.signature,);
+                const time = data.time;
+                const sender_id = data.sender_id;
+                const receiver_id = data.receiver_id;
+
+                const signedMSG={
+                    cipherText: data.cipherText,
+                    IV: data.iv,
+                    signature: data.signature
+                }
+                const message = await verThenDec(Alice, signedMSG);
+                displayMessage(message, sender_id, receiver_id);
+            });
+
+            // load history messages from server which include both sender and receiver
+            function request_history_message() {
+                // send request to server
+                socket.emit('request_history_message', {sender_id: client_id, receiver_id: receiver_id});
+            }
+
+            
+
+            // Function to get the current timestamp
+            function getCurrentTimestamp() {
+                const now = new Date();
+                const year = now.getFullYear();
+                const month = String(now.getMonth() + 1).padStart(2, '0'); // (0-11)
+                const day = String(now.getDate()).padStart(2, '0');
+                const hours = String(now.getHours()).padStart(2, '0');
+                const minutes = String(now.getMinutes()).padStart(2, '0');
+                const seconds = String(now.getSeconds()).padStart(2, '0');
+
+                return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+            }
+            
+            
+
+
+            
+
+            // show history messages
+
+            function displayMessage(message, sender_id, receiver_id){
+                const messageShow = document.getElementById('messageShow');
+                const messageElement = document.createElement('div');
+                // decrypt message here
+                //messageElement.textContent = message;
+                messageShow.appendChild(addStyleMessage(messageElement, sender_id, receiver_id, message));
+                console.log("Debug: Displaying message - Sender ID: ", sender_id, " Receiver ID: ", receiver_id, " Message: ", message);
+                messageElement.scrollTop = messageElement.scrollHeight;
+                messageShow.scrollTop = messageShow.scrollHeight;
+            }
+
+            // add style to sent and received messages
+            /*
+                            <div id="msg_time">
+                                ${message.time}
+                            </div>
+            */
+            function addStyleMessage(messageElement, sender_id, receiver_id, message){
+                // message sent from client
+                if (sender_id == client_id){
+                    messageElement.innerHTML = 
+                    `
+                    <div class="message_align_right">
+                        <div id="sent_message">
+                            ${message}
+                        </div>
+                    </div>
+                    `
+                    ;
+                    messageElement.classList.add('sent_message');
+                    console.log("Debug: Sent by Client - Client ID: ", sender_id);
+                }
+                // message received by client
+                else if (receiver_id == client_id){
+                    messageElement.innerHTML = 
+                    `
+                    <div class="message_align_left">
+                        <div id="received_message">
+                            ${message}  
+                        </div>
+                    </div>
+                    `
+                    ;
+                    messageElement.classList.add('received_message');
+                    console.log("Debug: Sent by Peer - Peer ID: ", receiver_id);
+                }
+                return messageElement;
+            }
 
 
             }
