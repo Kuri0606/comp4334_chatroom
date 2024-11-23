@@ -59,10 +59,10 @@
         <!-- Socket.io -->
         <!-- integrity - not tampered, crossorigin - CORS -->
         <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.8.1/socket.io.js" integrity="sha512-8BHxHDLsOHx+flIrQ0DrZcea7MkHqRU5GbTHmbdzMRnAaoCIkZ97PqZcXJkKZckMMhqfoeaJE+DNUVuyoQsO3Q==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-
+        
         <!-- Script -->
         <script type="text/javascript">
-            
+
 
             
 
@@ -675,12 +675,37 @@
                 })
             });
 
+            // convert base64 string to ArrayBuffer
+            function base64ToArrayBuffer(base64) {
+                const binaryString = atob(base64);
+
+                const length = binaryString.length;
+                const bytes = new Uint8Array(length);
+
+                for (let i = 0; i < length; i++) {
+                    bytes[i] = binaryString.charCodeAt(i);
+                }
+
+                return bytes.buffer;
+            }
+
             // receive and load history messages
             socket.on('receive_history_message', function(messages) {
+                if (messages.length === 0) {
+                    console.log("Debug: No history messages");
+                    return;
+                }
                 console.log("Debug: Receiving history messages - Messages: ", messages);
-                messages.forEach(message => {
-                    console.log("Debug: Displaying history messages - Message: ", message.message_content, " Sender ID: ", message.sender_id, " Receiver ID: ", message.receiver_id);
-                    displayMessage(message.message_content, message.sender_id, message.receiver_id);
+                messages.forEach(async message => {
+                    const time = new Date(message.created_time);
+                    const signedMSG = {
+                        cipherText: base64ToArrayBuffer(message.message_content),
+                        IV: base64ToArrayBuffer(message.iv),
+                        signature: base64ToArrayBuffer(message.sign)
+                    }
+                    const plain_message = await verThenDec(Alice, signedMSG);
+                    console.log("Debug: Displaying history messages - Message: ", plain_message, " Sender ID: ", message.sender_id, " Receiver ID: ", message.receiver_id);
+                    displayMessage(plain_message, message.sender_id, message.receiver_id);
                 });
                 console.log("Debug: All history messages have loaded");
             });
@@ -785,7 +810,7 @@
                         sender_id: client_id,
                         receiver_id: receiver_id,
                         // encrypt message
-                        message: message,
+                        //message: message,
                         time: getCurrentTimestamp(),
 
                         //
@@ -793,7 +818,7 @@
                         iv: signedMSG.IV,
                         signature: signedMSG.signature
     
-                    };
+                    };                    
                     // send to server
                     socket.emit('send_message', data);
                     console.log("Debug: Sending message - Sender ID: ", client_id, " Receiver ID: ", receiver_id, " Message: ", message, " cipherText: ", data.cipherText, " IV: ", data.iv,  " signature: ", data.signature);
@@ -808,7 +833,6 @@
             socket.on('receive_message', async function(data) {
                 // decrypt message
                 console.log("Debug: Receiving message - Sender ID: ", data.sender_id, " Receiver ID: ", data.receiver_id, " Message: ", data.message, " cipherText: ", data.cipherText, " IV: ", data.iv, " signature: ", data.signature,);
-                const message = data.message;
                 const time = data.time;
                 const sender_id = data.sender_id;
                 const receiver_id = data.receiver_id;
@@ -818,7 +842,7 @@
                     IV: data.iv,
                     signature: data.signature
                 }
-                await verThenDec(Alice, signedMSG);
+                const message = await verThenDec(Alice, signedMSG);
                 displayMessage(message, sender_id, receiver_id);
             });
 

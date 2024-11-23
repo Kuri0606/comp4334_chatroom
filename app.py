@@ -3,7 +3,7 @@ from flask_mysqldb import MySQL
 from flask_socketio import SocketIO, emit, join_room, leave_room
 from flask_session import Session
 from flask_sqlalchemy import SQLAlchemy
-import yaml
+import yaml, base64
 
 app = Flask(__name__)
 
@@ -96,7 +96,7 @@ def handle_disconnect():
 def handle_handshake(data):
     client_id = data
     if client_id:
-        user_id_sid[int(client_id)]
+        user_id_sid[int(client_id)] = request.sid
     print("Client handshake! client's user_id:", client_id, " sid:", request.sid)
 
 @socketio.on('send_public_key')
@@ -114,12 +114,20 @@ def handle_request_history_message(data):
     sender_id = data['sender_id']
     receiver_id = data['receiver_id']
     cur = mysql.connection.cursor()
-    query = """SELECT sender_id, receiver_id, message_content FROM messages 
+    query = """SELECT sender_id, receiver_id, message_content, iv, sign, created_time FROM messages 
                WHERE (sender_id = %s AND receiver_id = %s) OR (sender_id = %s AND receiver_id = %s)
                ORDER BY created_time ASC"""
     cur.execute(query, (sender_id, receiver_id, receiver_id, sender_id))
     column_names = [desc[0] for desc in cur.description]
-    messages = [dict(zip(column_names, row)) for row in cur.fetchall()]
+    messages = []
+    for row in cur.fetchall():
+        message_dict = dict(zip(column_names, row))
+        # convert BLOB to ArrayBuffer
+        message_dict['message_content'] = base64.b64encode(message_dict['message_content']).decode('utf-8')
+        message_dict['iv'] = base64.b64encode(message_dict['iv']).decode('utf-8')
+        message_dict['sign'] = base64.b64encode(message_dict['sign']).decode('utf-8')
+        message_dict['created_time'] = message_dict['created_time'].isoformat()
+        messages.append(message_dict)
     cur.close()
     emit('receive_history_message', messages)
 
@@ -129,10 +137,14 @@ def handle_send_message(data):
     print('Received message:', data)
     sender_id = data['sender_id']
     receiver_id = data['receiver_id']
-    message_text = data['message']
+    #message_text = data['message']
+    cipher_text = bytes(data['cipherText'])
+    iv = bytes(data['iv'])
+    sign = bytes(data['signature'])
+    
     time = data['time']
     cur = mysql.connection.cursor()
-    cur.execute("INSERT INTO messages (sender_id, receiver_id, message_content, created_time) VALUES (%s, %s, %s, %s)", (sender_id, receiver_id, message_text, time))
+    cur.execute("INSERT INTO messages (sender_id, receiver_id, message_content, iv, sign, created_time) VALUES (%s, %s, %s, %s, %s, %s)", (sender_id, receiver_id, cipher_text, iv, sign, time))
     mysql.connection.commit()
     cur.close()
     receiver_sid = user_id_sid.get(int(receiver_id))
