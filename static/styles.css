@@ -117,6 +117,13 @@
     overflow-wrap: break-word;
 }
 
+#msg_time{
+    font-size: 10px;
+    text-align: end;
+
+    margin-left: 16px;
+}
+
 .chatPage{
     display: flex;
     height: 100%;
