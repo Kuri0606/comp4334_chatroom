@@ -1,4 +1,4 @@
-from flask import Flask, redirect, url_for, render_template, session, request, abort
+from flask import Flask, redirect, url_for, render_template, session, request, abort, jsonify
 from flask_mysqldb import MySQL
 from flask_socketio import SocketIO, emit, join_room, leave_room
 from flask_session import Session
@@ -93,6 +93,23 @@ def users():
     cur.close()
     other_users = [[user[0], user[1]] for user in user_data if user[0] != session['user_id']]
     return ({'users': other_users})
+
+@app.route('/usersCommunicated')
+def usersCommunicated():
+    if 'user_id' not in session:
+        abort(403)
+
+    cur = mysql.connection.cursor()
+    cur.execute("SELECT DISTINCT receiver_id FROM messages WHERE sender_id = %s", (session['user_id'],))
+    receiverIds = cur.fetchall()
+
+    receivers = []
+    for receiverId in receiverIds:
+        cur.execute("SELECT username FROM users WHERE user_id = %s", (receiverId[0],))
+        username = cur.fetchall()
+        receivers.append([receiverId[0], username[0]])
+    cur.close()
+    return ({'receivers': receivers})
 
 # handled by socketio, don't need to emit to this event
 @socketio.on('connect')
