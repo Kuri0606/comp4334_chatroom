@@ -659,9 +659,9 @@
             
 
             // chat room function
-            var socket = io();
+            // var socket = io();
             // use below if ssl is enabled
-            // const socket = io.connect('wss://' + document.domain + ':' + location.port);
+            const socket = io.connect('wss://' + document.domain + ':' + location.port);
 
             // generate user select list
             $(document).ready(function() {

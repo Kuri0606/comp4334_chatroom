@@ -113,24 +113,11 @@ def usersCommunicated():
 
 @app.route('/logout')
 def logout():
-    session.clear()
-    return redirect(url_for('login'))
-
-# handled by socketio, don't need to emit to this event
-@socketio.on('connect')
-def handle_connect():
-    client_id = session.get('user_id')
-    if client_id:
-        user_id_sid[client_id] = request.sid
-    print("Client connected! client's user_id:", client_id, " sid:", request.sid)
-
-# handled by socketio, don't need to emit to this event
-@socketio.on('disconnect')
-def handle_disconnect():
     client_id = session.get('user_id')
     if client_id:
         del user_id_sid[client_id]
-    print("Client disconnected! client's user_id:", client_id, " sid:", request.sid)
+    session.clear()
+    return redirect(url_for('login'))
 
 @socketio.on('handshake')
 def handle_handshake(data):
