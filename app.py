@@ -111,6 +111,11 @@ def usersCommunicated():
     cur.close()
     return ({'receivers': receivers})
 
+@app.route('/logout')
+def logout():
+    session.clear()
+    return redirect(url_for('login'))
+
 # handled by socketio, don't need to emit to this event
 @socketio.on('connect')
 def handle_connect():
