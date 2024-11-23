@@ -10,11 +10,10 @@
     </head>
 
     <body>
-        <div class="UI_Background">
-            <h2>Welcome,</h2>
+        <div class="chatPage">
             <div class="contactors">
                 <div class="messageInputColumn">
-                <h2 class="textCenter">Contactors</h2>
+                    <h2 class="textCenter">Contactors</h2>
                     <!-- Add users button-->
                     <select id="allUsers" class="select">
                         <!-- Options will be dynamically added here -->
@@ -30,7 +29,11 @@
             <div class="messageArea">
                 <div>
                     <h2 id="selectedReceiver" class="textCenter"></h2>
-        
+
+                    <div id="messageShow">
+
+                    </div>
+
                     <div class="bot_bar">
                         <!-- send button-->
                         <div class="verticle_center_align">
@@ -69,230 +72,13 @@
         
         <!-- Script -->
         <script type="text/javascript">
-
-
-            // generate user select list
-            $(document).ready(function() {
-                // Initial option for all users list
-                var defaultOption = $('<option>').text('Add User').attr({
-                    'user_id': 0,
-                    'username': defaultOption
-                });
-                $('#allUsers').append(defaultOption);
-
-                fetch('/users')
-                .then(response => response.json())
-                .then(data => {
-                    console.log("Debug: Getting user list: ", data);
-                    data.users.forEach(user => {
-                        const user_id = user[0];
-                        const username = user[1];
-                        user_id_name[user_id] = username;
-
-                        // Create an option for each user
-                        var userOption = $('<option>').text('Id: ' + user_id + ' Name: ' + username).attr({
-                            'user_id': user_id,
-                            'username': username
-                        });
-
-                        // Append the user option to the select dropdown
-                        $('#allUsers').append(userOption);
-                    });
-                });
-                
-                $('#allUsers').on('change', function() {
-                    var allUsersList = document.getElementById('allUsers');
-                    var selectedOption = allUsersList.options[allUsersList.selectedIndex];
-                    console.log(selectedOption);
-                    if (allUsersList.selectedIndex != 0) {
-                        var selectedUserId = selectedOption.getAttribute('user_id');
-                        var selectedUsername = selectedOption.getAttribute('username');
-
-                        console.log("Debug: Adding user into listItem - User ID: ", selectedUserId, " Username: ", selectedUsername);
-                        var listItem = $('<li>').text('#' + selectedUserId + ' ' + selectedUsername).attr({
-                            'user_id': selectedUserId,
-                            'username': selectedUsername
-                        });
-
-                        var contactorsList = document.getElementById('userList').children;   
-                        
-                        console.log(contactorsList);
-
-                        // Check whether listItem already exist in contactors list
-                        var selectedUserInList = false;
-                        for (var i = 0; i < contactorsList.length; i++) {
-                            if ($(listItem).attr('user_id') == contactorsList[i].getAttribute('user_id')) {
-                                selectedUserInList = true;
-                                break;
-                            }
-                        }
-
-                        console.log(selectedUserInList);
-
-                        if (!selectedUserInList) {
-                            $('#userList').append(listItem);
-                            $(listItem).addClass('contact-list-item');
-
-                            // Event handler for selecting a user from the list
-                            listItem.click(function() {
-                                receiver_id = $(this).attr('user_id');
-                                receiver_name = $(this).attr('username');
-                                $('#userList li').removeClass('selected');
-                                $(this).addClass('selected');
-                                console.log("Debug: Selected user - User ID: ", receiver_id, " Username: ", receiver_name);
-                                $('#selectedReceiver').text(receiver_name);
-                                // erase previous messages
-                                $('#messageShow').empty();
-                                // load history messages
-                                request_history_message();
-                            });
-                        } else {
-                            alert("User already added into contactors list!");
-                        }
-                        allUsersList.selectedIndex = 0;
-                    }
-                });
-            });
-
-            // load history messages from server which include both sender and receiver
-            function request_history_message() {
-                // send request to server
-                socket.emit('request_history_message', {sender_id: client_id, receiver_id: receiver_id});
-            }
-
-            // receive and load history messages
-            socket.on('receive_history_message', function(messages) {
-                console.log("Debug: Receiving history messages - Messages: ", messages);
-                messages.forEach(message => {
-                    console.log("Debug: Displaying history messages - Message: ", message.message_content, " Sender ID: ", message.sender_id, " Receiver ID: ", message.receiver_id);
-                    displayMessage(message.message_content, message.sender_id, message.receiver_id);
-                });
-                console.log("Debug: All history messages have loaded");
-            });
-
-            // Function to get the current timestamp
-            function getCurrentTimestamp() {
-                const now = new Date();
-                const year = now.getFullYear();
-                const month = String(now.getMonth() + 1).padStart(2, '0'); // (0-11)
-                const day = String(now.getDate()).padStart(2, '0');
-                const hours = String(now.getHours()).padStart(2, '0');
-                const minutes = String(now.getMinutes()).padStart(2, '0');
-                const seconds = String(now.getSeconds()).padStart(2, '0');
-
-                return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
-            }
             
-            // handshake
-            socket.on('connect', function() {
-                console.log("Debug: Connected to server, Client ID: ", client_id);
-                socket.emit('handshake', client_id);
-            });
-
-            // send public key
-            socket.on('send_public_key', function(public_key) {
-                const data = {
-                    sender_id: client_id,
-                    receiver_id: receiver_id,
-                    public_key: public_key
-                };
-                socket.emit('public_key', client_id);
-                console.log("Debug: Sending public key to server, Client ID: ", client_id, " Receiver ID: ", receiver_id, " Public Key: ", publicKey);
-            });
-
-            //receive public key
-            socket.on('receive_public_key', function(data) {
-                console.log("Debug: Receiving public key - Sender ID: ", data.sender_id, " Receiver ID: ", data.receiver_id, " Public Key: ", data.public_key);
-                return data.public_key;
-            });
-            
-            // Add users
-            $('#addUsers').click(function() {
-                const message = document.getElementById('messageInput').value;
-                // not accept empty message, only whitespace
-                if (message.trim() !== "" && receiver_id !== -1) {
-
-                    const data = {
-                        sender_id: client_id,
-                        receiver_id: receiver_id,
-                        // encrypt message
-                        message: message,
-                        time: getCurrentTimestamp()
-                    };
-                    // send to server
-                    socket.emit('send_message', data);
-                    console.log("Debug: Sending message - Sender ID: ", client_id, " Receiver ID: ", receiver_id, " Message: ", message);
-                    displayMessage(message, client_id, receiver_id);
-                    document.getElementById('messageInput').value = '';
-                } else {
-                    alert("Message cannot be empty!");
-                }
-            });
-
-            // send message
-            $('#messageSend').click(function() {
-                const message = document.getElementById('messageInput').value;
-                // not accept empty message, only whitespace
-                if (message.trim() !== "" && receiver_id !== -1) {
-
-                    const data = {
-                        sender_id: client_id,
-                        receiver_id: receiver_id,
-                        // encrypt message
-                        message: message,
-                        time: getCurrentTimestamp()
-                    };
-                    // send to server
-                    socket.emit('send_message', data);
-                    console.log("Debug: Sending message - Sender ID: ", client_id, " Receiver ID: ", receiver_id, " Message: ", message);
-                    displayMessage(message, client_id, receiver_id);
-                    document.getElementById('messageInput').value = '';
-                } else {
-                    alert("Message cannot be empty!");
-                }
-            });
-        
-            // receive message
-            socket.on('receive_message', function(data) {
-                // decrypt message
-                console.log("Debug: Receiving message - Sender ID: ", data.sender_id, " Receiver ID: ", data.receiver_id, " Message: ", data.message);
-                const message = data.message;
-                const time = data.time;
-                const sender_id = data.sender_id;
-                const receiver_id = data.receiver_id;
-                displayMessage(message, sender_id, receiver_id);
-            });
-
-            // show history messages
-
-            function displayMessage(message, sender_id, receiver_id){
-                const messageShow = document.getElementById('messageShow');
-                const messageElement = document.createElement('div');
-                // decrypt message here
-                messageElement.textContent = message;
-                messageShow.appendChild(addStyleMessage(messageElement, sender_id, receiver_id));
-                console.log("Debug: Displaying message - Sender ID: ", sender_id, " Receiver ID: ", receiver_id, " Message: ", message);
-                messageElement.scrollTop = messageElement.scrollHeight;
-                messageShow.scrollTop = messageShow.scrollHeight;
-            }
-
-            // add style to sent and received messages
-            function addStyleMessage(messageElement, sender_id, receiver_id){
-                // message sent from client
-                if (sender_id == client_id){
-                    messageElement.classList.add('sent_message');
-                    console.log("Debug: Sent by Client - Client ID: ", sender_id);
-                }
-                // message received by client
-                else if (receiver_id == client_id){
-                    messageElement.classList.add('received_message');
-                    console.log("Debug: Sent by Peer - Peer ID: ", receiver_id);
-                }
-                return messageElement;
-            }
 
 
-            
+
+
+
+
             // Start 
             // User data structure
             class User{
@@ -869,6 +655,13 @@
 
             // generate user select list
             $(document).ready(function() {
+                // Initial option for all users list
+                var defaultOption = $('<option>').text('Add User').attr({
+                    'user_id': 0,
+                    'username': defaultOption
+                });
+                $('#allUsers').append(defaultOption);
+
                 fetch('/users')
                 .then(response => response.json())
                 .then(data => {
@@ -877,27 +670,70 @@
                         const user_id = user[0];
                         const username = user[1];
                         user_id_name[user_id] = username;
-                        
-                        console.log("Debug: Generating user list - User ID: ", user_id, " Username: ", username);
-                        var listItem = $('<li id="userListItem">').text(username+' #'+user_id).attr({
+
+                        // Create an option for each user
+                        var userOption = $('<option>').text('Id: ' + user_id + ' Name: ' + username).attr({
                             'user_id': user_id,
-                            'username': username                      
+                            'username': username
                         });
-                        // select user
-                        listItem.click(function() {
-                            receiver_id = $(this).attr('user_id');
-                            receiver_name = $(this).attr('username');
-                            $('#userList li').removeClass('selected');
-                            $(this).addClass('selected');
-                            console.log("Debug: Selected user - User ID: ", receiver_id, " Username: ", receiver_name);
-                            // erase previous messages
-                            $('#messageShow').empty();
-                            // load history messages                            
-                            request_history_message();
-                        });
-                        $('#userList').append(listItem);
+
+                        // Append the user option to the select dropdown
+                        $('#allUsers').append(userOption);
                     });
-                })
+                });
+                
+                $('#allUsers').on('change', function() {
+                    var allUsersList = document.getElementById('allUsers');
+                    var selectedOption = allUsersList.options[allUsersList.selectedIndex];
+                    console.log(selectedOption);
+                    if (allUsersList.selectedIndex != 0) {
+                        var selectedUserId = selectedOption.getAttribute('user_id');
+                        var selectedUsername = selectedOption.getAttribute('username');
+
+                        console.log("Debug: Adding user into listItem - User ID: ", selectedUserId, " Username: ", selectedUsername);
+                        var listItem = $('<li>').text('#' + selectedUserId + ' ' + selectedUsername).attr({
+                            'user_id': selectedUserId,
+                            'username': selectedUsername
+                        });
+
+                        var contactorsList = document.getElementById('userList').children;   
+                        
+                        console.log(contactorsList);
+
+                        // Check whether listItem already exist in contactors list
+                        var selectedUserInList = false;
+                        for (var i = 0; i < contactorsList.length; i++) {
+                            if ($(listItem).attr('user_id') == contactorsList[i].getAttribute('user_id')) {
+                                selectedUserInList = true;
+                                break;
+                            }
+                        }
+
+                        console.log(selectedUserInList);
+
+                        if (!selectedUserInList) {
+                            $('#userList').append(listItem);
+                            $(listItem).addClass('contact-list-item');
+
+                            // select user
+                            listItem.click(function() {
+                                receiver_id = $(this).attr('user_id');
+                                receiver_name = $(this).attr('username');
+                                $('#userList li').removeClass('selected');
+                                $(this).addClass('selected');
+                                console.log("Debug: Selected user - User ID: ", receiver_id, " Username: ", receiver_name);
+                                $('#selectedReceiver').text(receiver_name);
+                                // erase previous messages
+                                $('#messageShow').empty();
+                                // load history messages
+                                request_history_message();
+                            });
+                        } else {
+                            alert("User already added into contactors list!");
+                        }
+                        allUsersList.selectedIndex = 0;
+                    }
+                });
             });
 
             // convert base64 string to ArrayBuffer
@@ -1110,7 +946,7 @@
                 messageShow.scrollTop = messageShow.scrollHeight;
             }
 
-            // add style to sent and received messages
+             // add style to sent and received messages
             /*
                             <div id="msg_time">
                                 ${message.time}

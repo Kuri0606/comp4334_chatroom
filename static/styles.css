@@ -1,24 +1,23 @@
-.UI_Background{
-    margin-left: 10px;
-}
-
-
 #messageShow{
-    width:640px;
-    height: 700px;
-    /*border: black 1px solid;*/
+    width: 1000px;
+    height: 600px;
+    border: black 1px solid;
     overflow-y: auto;
     overflow-x: hidden;
 
     scrollbar-color: grey transparent;
     scrollbar-width: thin;
-    
+    margin-left: auto;
+    margin-right: auto;
+
 }
 
 .bot_bar{
     display: flex;
-    width:640px;
+    width: 840px;
     height: 80px;
+    margin-left: auto;
+    margin-right: auto;
 
 }
 
@@ -30,7 +29,7 @@
 
 #messageInput{
     margin:10px;
-    width: 530px;
+    width: 730px;
     height: 60px;
 
     overflow-y: auto;
@@ -94,7 +93,6 @@
     max-width: 400px;
     width: fit-content;
     display: inline-block;
-
     white-space: normal; 
     overflow-wrap: break-word;
 }
