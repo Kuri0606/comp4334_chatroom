@@ -518,9 +518,12 @@
 
             }
 
-            async function encThenMac(User1,msg){
-                let cipherText_IV = await encryptMessage(msg,User1.encryptKey[User1.encryptKey.length-1]);
-                let macSignature = await signMac(cipherText_IV.cipherText,User1.macKey[User1.macKey.length-1]);
+            async function encThenMac(User1,msg, timestamp){
+                let tempKeyIDArray = JSON.parse(localStorage.getItem("my_keyID"));
+                let targetkeyID = tempKeyIDArray.findIndex(item => item === timestamp);
+
+                let cipherText_IV = await encryptMessage(msg,User1.encryptKey[targetkeyID]);
+                let macSignature = await signMac(cipherText_IV.cipherText,User1.macKey[targetkeyID]);
                 let signedMSG = {
                     cipherText: cipherText_IV.cipherText,
                     IV: cipherText_IV.IV,
@@ -597,9 +600,14 @@
 
             async function verThenDec(User1, signedMSG){
                 let plaintext = "decrypt failed";
-                verifiedResult = await verifyMac(User1.macKey[User1.macKey.length-1], signedMSG.signature, signedMSG.cipherText);
+
+
+                let tempKeyIDArray = JSON.parse(localStorage.getItem("my_keyID"));
+                let targetkeyID = tempKeyIDArray.findIndex(item => item === signedMSG.keyID);
+
+                verifiedResult = await verifyMac(User1.macKey[targetkeyID], signedMSG.signature, signedMSG.cipherText);
                 if(verifiedResult == true){
-                    plaintext = await decrpytMessage(User1.encryptKey[User1.encryptKey.length-1], signedMSG.cipherText, signedMSG.IV);
+                    plaintext = await decrpytMessage(User1.encryptKey[targetkeyID], signedMSG.cipherText, signedMSG.IV);
                 }
                 return await plaintext
             }
@@ -645,6 +653,7 @@
             let first_exchanger = -1;
             let second_exchanger = -1;
             let timeStamp_from_first = "";
+            let usingTimeStamp = "";
 
             
 
@@ -783,11 +792,12 @@
                     const signedMSG = {
                         cipherText: base64ToArrayBuffer(message.message_content),
                         IV: base64ToArrayBuffer(message.iv),
-                        signature: base64ToArrayBuffer(message.sign)
+                        signature: base64ToArrayBuffer(message.sign),
+                        keyID: (message.keyID)
                     }
                     const plain_message = await verThenDec(Alice, signedMSG);
                     console.log("Debug: Displaying history messages - Message: ", plain_message, " Sender ID: ", message.sender_id, " Receiver ID: ", message.receiver_id);
-                    displayMessage(plain_message, message.sender_id, message.receiver_id);
+                    displayMessage(plain_message, message.sender_id, message.receiver_id, time);
                 });
                 console.log("Debug: All history messages have loaded");
             });
@@ -870,6 +880,7 @@
                 await deriveEcryptKey(Alice);
                 await deriveMACKey(Alice, secret);
                 Alice.updateKeyID(data.time);
+                usingTimeStamp = data.time;
 
                 if(first_exchanger == 1 && second_exchanger == -1){
                     first_exchanger=-1;
@@ -887,24 +898,26 @@
                 if (message.trim() !== "" && receiver_id !== -1) {
 
 
-                    const signedMSG = await encThenMac(Alice,message);
+                    const timeStamp = getCurrentTimestamp();
+                    const signedMSG = await encThenMac(Alice,message,usingTimeStamp);
                     const data = {
                         sender_id: client_id,
                         receiver_id: receiver_id,
                         // encrypt message
                         //message: message,
-                        time: getCurrentTimestamp(),
+                        time: timeStamp,
 
                         //
                         cipherText: signedMSG.cipherText,
                         iv: signedMSG.IV,
-                        signature: signedMSG.signature
+                        signature: signedMSG.signature,
+                        keyID: usingTimeStamp,
     
                     };                    
                     // send to server
                     socket.emit('send_message', data);
-                    console.log("Debug: Sending message - Sender ID: ", client_id, " Receiver ID: ", receiver_id, " Message: ", message, " cipherText: ", data.cipherText, " IV: ", data.iv,  " signature: ", data.signature);
-                    displayMessage(message, client_id, receiver_id);
+                    console.log("Debug: Sending message - Sender ID: ", client_id, " Receiver ID: ", receiver_id, " Message: ", message, " cipherText: ", data.cipherText, " IV: ", data.iv,  " signature: ", data.signature, "keyID: ", data.keyID);
+                    displayMessage(message, client_id, receiver_id, timeStamp.substring(7,24));
                     document.getElementById('messageInput').value = '';
                 } else {
                     alert("Message cannot be empty!");
@@ -914,7 +927,7 @@
             // receive message
             socket.on('receive_message', async function(data) {
                 // decrypt message
-                console.log("Debug: Receiving message - Sender ID: ", data.sender_id, " Receiver ID: ", data.receiver_id, " Message: ", data.message, " cipherText: ", data.cipherText, " IV: ", data.iv, " signature: ", data.signature,);
+                console.log("Debug: Receiving message - Sender ID: ", data.sender_id, " Receiver ID: ", data.receiver_id, " Message: ", data.message, " cipherText: ", data.cipherText, " IV: ", data.iv, " signature: ", data.signature, " time: ", data.time, "keyID: ", data.keyID);
                 const time = data.time;
                 const sender_id = data.sender_id;
                 const receiver_id = data.receiver_id;
@@ -922,10 +935,11 @@
                 const signedMSG={
                     cipherText: data.cipherText,
                     IV: data.iv,
-                    signature: data.signature
+                    signature: data.signature,
+                    keyID: data.keyID
                 }
                 const message = await verThenDec(Alice, signedMSG);
-                displayMessage(message, sender_id, receiver_id);
+                displayMessage(message, sender_id, receiver_id, time.substring(7,24));
             });
 
             // load history messages from server which include both sender and receiver
@@ -956,32 +970,40 @@
 
             // show history messages
 
-            function displayMessage(message, sender_id, receiver_id){
+            function displayMessage(message, sender_id, receiver_id, time){
                 const messageShow = document.getElementById('messageShow');
                 const messageElement = document.createElement('div');
                 // decrypt message here
                 //messageElement.textContent = message;
-                messageShow.appendChild(addStyleMessage(messageElement, sender_id, receiver_id, message));
+                messageShow.appendChild(addStyleMessage(messageElement, sender_id, receiver_id, message, time));
                 console.log("Debug: Displaying message - Sender ID: ", sender_id, " Receiver ID: ", receiver_id, " Message: ", message);
                 messageElement.scrollTop = messageElement.scrollHeight;
                 messageShow.scrollTop = messageShow.scrollHeight;
             }
 
              // add style to sent and received messages
-            /*
-                            <div id="msg_time">
-                                ${message.time}
-                            </div>
-            */
-            function addStyleMessage(messageElement, sender_id, receiver_id, message){
+            
+                            
+             
+
+
+            function addStyleMessage(messageElement, sender_id, receiver_id, message, time){
                 // message sent from client
+
+                let formattedTime = new String(time);
+                formattedTime = formattedTime.substring(4,24);
+
                 if (sender_id == client_id){
                     messageElement.innerHTML = 
                     `
                     <div class="message_align_right">
                         <div id="sent_message">
                             ${message}
+                            <div id="msg_time">
+                                ${formattedTime}
                         </div>
+                        </div>
+                        
                     </div>
                     `
                     ;
@@ -995,7 +1017,11 @@
                     <div class="message_align_left">
                         <div id="received_message">
                             ${message}  
+                            <div id="msg_time">
+                                ${formattedTime}
                         </div>
+                        </div>
+                        
                     </div>
                     `
                     ;

@@ -149,7 +149,7 @@ def handle_request_history_message(data):
     sender_id = data['sender_id']
     receiver_id = data['receiver_id']
     cur = mysql.connection.cursor()
-    query = """SELECT sender_id, receiver_id, message_content, iv, sign, created_time FROM messages 
+    query = """SELECT sender_id, receiver_id, message_content, iv, sign, created_time, keyID FROM messages 
                WHERE (sender_id = %s AND receiver_id = %s) OR (sender_id = %s AND receiver_id = %s)
                ORDER BY created_time ASC"""
     cur.execute(query, (sender_id, receiver_id, receiver_id, sender_id))
@@ -178,8 +178,9 @@ def handle_send_message(data):
     sign = bytes(data['signature'])
     
     time = data['time']
+    keyID = data['keyID']
     cur = mysql.connection.cursor()
-    cur.execute("INSERT INTO messages (sender_id, receiver_id, message_content, iv, sign, created_time) VALUES (%s, %s, %s, %s, %s, %s)", (sender_id, receiver_id, cipher_text, iv, sign, time))
+    cur.execute("INSERT INTO messages (sender_id, receiver_id, message_content, iv, sign, created_time, keyID) VALUES (%s, %s, %s, %s, %s, %s, %s)", (sender_id, receiver_id, cipher_text, iv, sign, time, keyID))
     mysql.connection.commit()
     cur.close()
     receiver_sid = user_id_sid.get(int(receiver_id))
