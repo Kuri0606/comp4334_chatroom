@@ -45,6 +45,24 @@ def index():
         return render_template('chatroom.html', client_id=session['user_id'], username=session['username'])
     return redirect(url_for('login'))
 
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if request.method == 'POST':
+        print('register post')
+        userLoginInfo = request.form
+        username = userLoginInfo['username']
+        password = userLoginInfo['password']
+        cur = mysql.connection.cursor()
+        cur.execute("SELECT user_id FROM users WHERE username = %s", (username,))
+        user = cur.fetchone()
+        if user:
+            return 'Same username already exists'
+        cur.execute("INSERT INTO users (username, password) VALUES (%s, %s)", (username, password))
+        mysql.connection.commit()
+        cur.close()
+        return render_template('login.html')
+    return render_template('register.html')
+
 # temporary login, need to get session id, username for send_message
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -70,7 +88,7 @@ def users():
     if 'user_id' not in session:
         abort(403)
     cur = mysql.connection.cursor()
-    cur.execute("SELECT user_id, username FROM users")
+    cur.execute("SELECT user_id, username FROM users ORDER BY user_id")
     user_data = cur.fetchall()
     cur.close()
     other_users = [[user[0], user[1]] for user in user_data if user[0] != session['user_id']]

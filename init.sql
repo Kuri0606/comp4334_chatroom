@@ -22,3 +22,4 @@ CREATE TABLE messages (
 
 INSERT INTO users (username, password) VALUES ('Alice', 'password123');
 INSERT INTO users (username, password) VALUES ('Bob', 'password456');
+INSERT INTO users (username, password) VALUES ('Eve', 'password789');

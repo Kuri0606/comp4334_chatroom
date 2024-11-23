@@ -10,35 +10,49 @@
     </head>
 
     <body>
-        <div>
-            <h2>Hi, user</h2>
+        <div class="chatPage">
+            <div class="contactors">
+                <div class="messageInputColumn">
+                <h2 class="textCenter">Contactors</h2>
+                    <!-- Add users button-->
+                    <select id="allUsers" class="select">
+                        <!-- Options will be dynamically added here -->
+                    </select>
+                </div>
 
-            <!-- message container -->
-            <div id="messageShow">
-
+                <!-- user selection sidebar-->
+                <div class="sidebar">
+                    <ul id="userList" class="textCenter"></ul>
+                </div>
             </div>
 
-            <br>
+            <div class="messageArea">
+                <div>
+                    <h2 id="selectedReceiver" class="textCenter"></h2>
+        
+                    <!-- message container -->
+                    <div id="messageShow">
+        
+                    </div>
+                    
+                    <br>
+        
+                    <div class="messageInputColumn">
 
+                        <!-- message input -->
+                        <textarea id="messageInput">
+                            
+                        </textarea>
+            
+                        <!-- send button-->
+                        <button id="messageSend">
+                            Send
+                        </button>
 
-            <!-- message input -->
-            <textarea id="messageInput">
-
-            </textarea>
-
-            <br>
-
-            <!-- send button-->
-            <button id="messageSend">
-                Send
-            </button>
-
-        </div>
-
-        <!-- user selection sidebar-->
-        <div class="sidebar">
-            <h5>Select a user to chat</h5>
-            <ul id="userList"></ul>
+                    </div>
+        
+                </div>
+            </div>
         </div>
 
         <!-- Script -->
@@ -67,6 +81,13 @@
 
             // generate user select list
             $(document).ready(function() {
+                // Initial option for all users list
+                var defaultOption = $('<option>').text('Add User').attr({
+                    'user_id': 0,
+                    'username': defaultOption
+                });
+                $('#allUsers').append(defaultOption);
+
                 fetch('/users')
                 .then(response => response.json())
                 .then(data => {
@@ -75,27 +96,70 @@
                         const user_id = user[0];
                         const username = user[1];
                         user_id_name[user_id] = username;
-                        
-                        console.log("Debug: Generating user list - User ID: ", user_id, " Username: ", username);
-                        var listItem = $('<li>').text(username+' #'+user_id).attr({
+
+                        // Create an option for each user
+                        var userOption = $('<option>').text('Id: ' + user_id + ' Name: ' + username).attr({
                             'user_id': user_id,
-                            'username': username                      
+                            'username': username
                         });
-                        // select user
-                        listItem.click(function() {
-                            receiver_id = $(this).attr('user_id');
-                            receiver_name = $(this).attr('username');
-                            $('#userList li').removeClass('selected');
-                            $(this).addClass('selected');
-                            console.log("Debug: Selected user - User ID: ", receiver_id, " Username: ", receiver_name);
-                            // erase previous messages
-                            $('#messageShow').empty();
-                            // load history messages                            
-                            request_history_message();
-                        });
-                        $('#userList').append(listItem);
+
+                        // Append the user option to the select dropdown
+                        $('#allUsers').append(userOption);
                     });
-                })
+                });
+                
+                $('#allUsers').on('change', function() {
+                    var allUsersList = document.getElementById('allUsers');
+                    var selectedOption = allUsersList.options[allUsersList.selectedIndex];
+                    console.log(selectedOption);
+                    if (allUsersList.selectedIndex != 0) {
+                        var selectedUserId = selectedOption.getAttribute('user_id');
+                        var selectedUsername = selectedOption.getAttribute('username');
+
+                        console.log("Debug: Adding user into listItem - User ID: ", selectedUserId, " Username: ", selectedUsername);
+                        var listItem = $('<li>').text('#' + selectedUserId + ' ' + selectedUsername).attr({
+                            'user_id': selectedUserId,
+                            'username': selectedUsername
+                        });
+
+                        var contactorsList = document.getElementById('userList').children;   
+                        
+                        console.log(contactorsList);
+
+                        // Check whether listItem already exist in contactors list
+                        var selectedUserInList = false;
+                        for (var i = 0; i < contactorsList.length; i++) {
+                            if ($(listItem).attr('user_id') == contactorsList[i].getAttribute('user_id')) {
+                                selectedUserInList = true;
+                                break;
+                            }
+                        }
+
+                        console.log(selectedUserInList);
+
+                        if (!selectedUserInList) {
+                            $('#userList').append(listItem);
+                            $(listItem).addClass('contact-list-item');
+
+                            // Event handler for selecting a user from the list
+                            listItem.click(function() {
+                                receiver_id = $(this).attr('user_id');
+                                receiver_name = $(this).attr('username');
+                                $('#userList li').removeClass('selected');
+                                $(this).addClass('selected');
+                                console.log("Debug: Selected user - User ID: ", receiver_id, " Username: ", receiver_name);
+                                $('#selectedReceiver').text(receiver_name);
+                                // erase previous messages
+                                $('#messageShow').empty();
+                                // load history messages
+                                request_history_message();
+                            });
+                        } else {
+                            alert("User already added into contactors list!");
+                        }
+                        allUsersList.selectedIndex = 0;
+                    }
+                });
             });
 
             // load history messages from server which include both sender and receiver
@@ -149,7 +213,29 @@
                 console.log("Debug: Receiving public key - Sender ID: ", data.sender_id, " Receiver ID: ", data.receiver_id, " Public Key: ", data.public_key);
                 return data.public_key;
             });
+            
+            // Add users
+            $('#addUsers').click(function() {
+                const message = document.getElementById('messageInput').value;
+                // not accept empty message, only whitespace
+                if (message.trim() !== "" && receiver_id !== -1) {
 
+                    const data = {
+                        sender_id: client_id,
+                        receiver_id: receiver_id,
+                        // encrypt message
+                        message: message,
+                        time: getCurrentTimestamp()
+                    };
+                    // send to server
+                    socket.emit('send_message', data);
+                    console.log("Debug: Sending message - Sender ID: ", client_id, " Receiver ID: ", receiver_id, " Message: ", message);
+                    displayMessage(message, client_id, receiver_id);
+                    document.getElementById('messageInput').value = '';
+                } else {
+                    alert("Message cannot be empty!");
+                }
+            });
 
             // send message
             $('#messageSend').click(function() {
