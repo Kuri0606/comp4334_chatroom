@@ -80,7 +80,8 @@ def login():
             session['username'] = username
             return redirect(url_for('index'))
         else:
-            return 'Invalid credentials'
+            #return 'Invalid credentials'
+            return render_template('login.html')
     return render_template('login.html')
 
 @app.route('/users')
